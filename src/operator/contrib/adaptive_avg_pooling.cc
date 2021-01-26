@@ -25,6 +25,11 @@
 #include "adaptive_avg_pooling-inl.h"
 // #include "elemwise_op_common.h"
 #include "../elemwise_op_common.h"
+#include <nnvm/op_attr_types.h>
+#include "../operator_common.h"
+#if MXNET_USE_MKLDNN == 1
+#include "../nn/mkldnn/mkldnn_adaptive_pooling-inl.h"
+#endif
 
 #define START_IND(a, b, c) static_cast<int>(std::floor(static_cast<float>(a * c) / b))
 #define END_IND(a, b, c) static_cast<int>(std::ceil(static_cast<float>((a + 1) * c) / b))
@@ -46,11 +51,12 @@ static void SpatialAdaptiveAveragePooling_updateOutput_frame(
           int64_t istrideD,
           int64_t istrideH,
           int64_t istrideW) {
-  int64_t d;
+    std::cout << "SpatialAdaptiveAveragePooling_updateOutput_frame " << sizeD << " " << isizeW << " " << isizeH << " " << osizeH << " " << osizeW << " " <<istrideD << " " << istrideH << " " << istrideW << "\n";
+    int64_t d;
 #pragma omp parallel for private(d) \
 num_threads(engine::OpenMP::Get()->GetRecommendedOMPThreadCount())
   for (d = 0; d < sizeD; d++) {
-    /* loop over output */
+      /* loop over output */
     int64_t oh, ow, ih, iw;
     int outOffset = d*osizeH*osizeW;
     for (oh = 0; oh < osizeH; oh++) {
@@ -95,6 +101,7 @@ static void SpatialAdaptiveAveragePooling_updateGradInput_frame(
           int64_t isizeW,
           int64_t osizeH,
           int64_t osizeW) {
+    std::cout << "SpatialAdaptiveAveragePooling_updateGradInput_frame\n";
   int64_t d;
 #pragma omp parallel for private(d) \
 num_threads(engine::OpenMP::Get()->GetRecommendedOMPThreadCount())
@@ -133,6 +140,7 @@ template<typename xpu, typename DType, typename AccReal>
 void AdaptiveAvgPoolUpdateOutput(mshadow::Stream<cpu> *s,
                                            const std::vector<TBlob> &input,
                                            const std::vector<TBlob> &output) {
+    std::cout << "AdaptiveAvgPoolUpdateOutput\n";
   Tensor<xpu, 4, DType> itensor = input[0].get<xpu, 4, DType>(s);
   Tensor<xpu, 4, DType> otensor = output[0].get<xpu, 4, DType>(s);
 
@@ -151,7 +159,7 @@ void AdaptiveAvgPoolUpdateOutput(mshadow::Stream<cpu> *s,
 
   int64_t osizeH = otensor.size(2);
   int64_t osizeW = otensor.size(3);
-
+ 
   int64_t b;
 #pragma omp parallel for private(b) \
 num_threads(engine::OpenMP::Get()->GetRecommendedOMPThreadCount())
@@ -197,9 +205,54 @@ num_threads(engine::OpenMP::Get()->GetRecommendedOMPThreadCount())
   }
 }
 
+#if MXNET_USE_MKLDNN == 1
+void AdaptiveAvgPoolComputeExCPU(const nnvm::NodeAttrs& attrs,
+        const OpContext &ctx,
+        const std::vector<NDArray> &inputs,
+        const std::vector<OpReqType> &req,
+        const std::vector<NDArray> &outputs) {
+  CHECK_EQ(inputs.size(), 1U);
+  CHECK_EQ(outputs.size(), 1U);
+  if(SupportMKLDNN(inputs[0])) {
+      const AdaptiveAvgPoolParam &param = nnvm::get<AdaptiveAvgPoolParam>(attrs.parsed);
+      const NDArray *workspace = nullptr;
+      MKLDNN_OPCHECK_INIT(false, 1, inputs, outputs);
+      std::cout << "HERE\n";
+      MKLDNNAdaptivePoolingCompute(ctx, param, inputs[0], req[0], outputs[0], workspace);
+      return;
+  } 
+  //LOG(FATAL) << "Adaptive Average Pooling is only supported by MKLDNN Beckend";
+}
+
+inline static bool AdaptivePoolingStorageType(const nnvm::NodeAttrs &attrs,
+                                      const int dev_mask,
+                                      DispatchMode *dispatch_mode,
+                                      std::vector<int> *in_attrs,
+                                      std::vector<int> *out_attrs) {
+  CHECK_EQ(in_attrs->size(), 1);
+  const AdaptiveAvgPoolParam &param = nnvm::get<AdaptiveAvgPoolParam>(attrs.parsed);
+  bool support_mkldnn_pool = true;
+
+  return MKLDNNStorageType(attrs, dev_mask, support_mkldnn_pool,
+                           dispatch_mode, in_attrs, out_attrs);
+}
+#endif
+/*
+struct AdaptiveAvgPoolParam : public dmlc::Parameter<AdaptivePoolingParam> {
+    mxnet::TShape kernel;
+    int pool_type;
+    DMLC_DECLARE_PARAMETER(AdaptiveAvgPoolParam) {
+    DMLC_DECLARE_FIELD(kernel).set_default(mxnet::TShape(0, 0))  // add default value here
+        .enforce_nonzero()
+        .describe("Pooling kernel size: (y, x) or (d, y, x)");
+     DMLC_DECLARE_FIELD(pool_type).set_default(pool_enum::kAvgPooling)
+         .add_enum("avg", pool_enum::kAvgPooling)
+         .describe("Pooling type to be applied.");
+}   
+};
+*/
 
 DMLC_REGISTER_PARAMETER(AdaptiveAvgPoolParam);
-
 NNVM_REGISTER_OP(_contrib_AdaptiveAvgPooling2D)
 .describe(R"code(
 Applies a 2D adaptive average pooling over a 4D input with the shape of (NCHW).
@@ -217,8 +270,12 @@ The pooling kernel and stride sizes are automatically chosen for desired output 
 .set_num_outputs(1)
 .set_attr<mxnet::FInferShape>("FInferShape", AdaptiveAvgPoolOpInferShape)
 .set_attr<FCompute>("FCompute<cpu>", AdaptiveAvgPoolOpForward<cpu>)
-.set_attr<nnvm::FGradient>("FGradient",
-  ElemwiseGradUseNone{"_backward_contrib_AdaptiveAvgPooling2D"})
+#if MXNET_USE_MKLDNN == 1
+.set_attr<FInferStorageType>("FInferStorageType", AdaptivePoolingStorageType)
+.set_attr<bool>("TIsMKLDNN", true)
+.set_attr<FComputeEx>("FComputeEx<cpu>",  AdaptiveAvgPoolComputeExCPU)
+#endif
+.set_attr<nnvm::FGradient>("FGradient", ElemwiseGradUseNone{"_backward_contrib_AdaptiveAvgPooling2D"})
 .add_argument("data", "NDArray-or-Symbol", "Input data")
 .add_arguments(AdaptiveAvgPoolParam::__FIELDS__());
 
@@ -227,8 +284,22 @@ NNVM_REGISTER_OP(_backward_contrib_AdaptiveAvgPooling2D)
 .set_num_inputs(1)
 .set_num_outputs(1)
 .set_attr<nnvm::TIsBackward>("TIsBackward", true)
+//#if MXNET_USE_MKLDNN == 1
+//.set_attr<bool>("TIsMKLDNN", true)
+//.set_attr<FComputeEx>("FComputeEx<cpu>" AdaptiveAvgPoolGradComputeExCPU)
+//#endif
 .set_attr<FCompute>("FCompute<cpu>", AdaptiveAvgPoolOpBackward<cpu>);
-
 
 }  // namespace op
 }  // namespace mxnet
+namespace std {
+    template<>
+        struct hash<mxnet::op::AdaptiveAvgPoolParam> {
+            size_t operator()(const mxnet::op::AdaptiveAvgPoolParam &val) {
+                size_t ret = 0;
+                //ret = dmlc::HashCombine(ret, val.kernel);
+                //ret = dmlc::HashCombine(ret, val.pool_type);
+                return ret;
+            }
+        };
+} // namespace std;
