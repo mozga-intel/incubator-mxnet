@@ -29,16 +29,15 @@
 #include <utility>
 #include <mkldnn.hpp>
 #include "../../operator_common.h"
-//#include "../../contrib/adaptive_avg_pooling-inl.h"
 #include "./mkldnn_base-inl.h"
 
-template<typename TH> void _dbg(const char* sdbg, TH h) { cerr<<sdbg<<"="<<h<<endl; }
+template<typename TH> void _dbg(const char* sdbg, TH h) { std::cerr<<sdbg<<"="<<h<<std::endl; }
 template<typename TH, typename... TA> void _dbg(const char* sdbg, TH h, TA... t) {
-      while(*sdbg != ',') { cerr<<*sdbg++; } cerr<<"="<<h<<","; _dbg(sdbg+1, t...);
+      while(*sdbg != ',') { std::cerr<<*sdbg++; } std::cerr<<"="<<h<<","; _dbg(sdbg+1, t...);
 }
 #ifdef LOCAL
 #define debug(...) _dbg(#__VA_ARGS__, __VA_ARGS__)
-#define debugv(x) {{cerr <<#x <<" = "; FORE(itt, (x)) cerr <<*itt <<", "; cerr <<endl; }}
+#define debugv(x) {{std::cerr <<#x <<" = "; FORE(itt, (x)) std::cerr <<*itt <<", "; std::cerr <<endl; }}
 #else
 #define debug(...) (__VA_ARGS__)
 #define debugv(x)
@@ -67,8 +66,7 @@ class MKLDNNAdaptivePoolingFwd {
                 const NDArray &output,
                 const NDArray *workspace) {
             NDArray in_buffer = input;
-            if(input.IsView() && input.IsMKLDNNData())
-                in_buffer = input.Reorder2Default();
+            if(input.IsView() && input.IsMKLDNNData()) in_buffer = input.Reorder2Default();
             auto input_mem = in_buffer.GetMKLDNNData();
             auto output_mem_t = CreateMKLDNNMem(output, this->fwd_pd_->dst_desc(), req);
 
@@ -76,7 +74,6 @@ class MKLDNNAdaptivePoolingFwd {
                 {MKLDNN_ARG_SRC, *input_mem},
                 {MKLDNN_ARG_DST, *(output_mem_t.second) }
             };
-
             if(this->with_workspace_) {
                 auto engine = CpuEngine::Get()->get_engine();
                 if(workspace == nullptr) LOG(FATAL) << "MKLDNN Average Pooling: incorrect worskapce input";
@@ -90,7 +87,7 @@ class MKLDNNAdaptivePoolingFwd {
                 MKLDNNStream::Get()->Submit();
             } else { 
                 LOG(FATAL) << "MKLDNN Pooling: forward primitive is nullptr";
-            } 
+            }
         }
     private:
         bool with_workspace_;
@@ -120,6 +117,8 @@ class MKLDNNAdaptivePoolingFwd {
                 LOG(INFO) << "MKLDNN Pooling: training with prop_kind is forward_scoring";
             }
             const auto fwd_desc = mkldnn::pooling_forward::desc(prop, alg_kind, src_md, dst_md, strides, kernel, pad_l, pad_r);
+            this->fwd_pd_.reset(new mkldnn::pooling_forward::primitive_desc(fwd_desc, engine));
+            this->fwd_.reset(new mkldnn::pooling_forward(*(this->fwd_pd_)));
         }
 };
 
@@ -192,15 +191,15 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
        if(kernel_ndims == 2) {  }
        if(kernel_ndims == 3) {  }
        if(kernel_ndims == 4) {
-           kernel[0] = sizeB;
-           kernel[1] = sizeD;
-           kernel[2] = isizeH;
-           kernel[3] = isizeW;
+           kernel[0] = 0;//sizeB;
+           kernel[1] = 0;///sizeD;
+           kernel[2] = 0;///isizeH;
+           kernel[3] = 0;//isizeW;
 
-           strides[0] = istrideB;
-           strides[1] = istrideD;
-           strides[2] = istrideH;
-           strides[3] = istrideW;
+           strides[0] = 0;//istrideB;
+           strides[1] = 0;//istrideD;
+           strides[2] = 0;//istrideH;
+           strides[3] = 0;//istrideW;
 
            pad_l[0] = 0;
            pad_l[1] = 0;
@@ -213,7 +212,7 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
            pad_r[3] = 0;
        }
        mkldnn::algorithm kind = mkldnn::algorithm::pooling_avg;
-       MKLDNNAdaptivePoolingFwd fwd(input, output, kernel, strides, pad_l, pad_r, kind, false, false); 
+       MKLDNNAdaptivePoolingFwd fwd(input, output, kernel, strides, pad_l, pad_r, kind, true, true); 
        it = AddToCache(&pooling_fwds, key, fwd);
    }
    return it->second;
@@ -224,7 +223,7 @@ void MKLDNNAdaptivePoolingCompute(const OpContext &ctx, const T &param,
                           const NDArray &in_data, const OpReqType req,
                           const NDArray &out_data, const NDArray *workspace) {
     auto &fwd = GetPoolingFwd(param, ctx.is_train, in_data, out_data);
-	fwd.Execute(in_data, req, out_data, workspace);
+    fwd.Execute(in_data, req, out_data, workspace);
 }
 
 template<typename T>

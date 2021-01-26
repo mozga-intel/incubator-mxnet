@@ -56,11 +56,6 @@ struct AdaptiveAvgPoolParam : public dmlc::Parameter<AdaptiveAvgPoolParam> {
   bool operator==(const AdaptiveAvgPoolParam &other) const {
       this->output_size == other.output_size;
   }
-
-  int GetLayout(int input_dim) const {
-      int ret_val = mshadow::kNCW; 
-
-  }
 };
 
 static inline bool IsWriting(const OpReqType ort) {
@@ -95,8 +90,6 @@ inline void AdaptiveAvgPoolOpForward(const nnvm::NodeAttrs& attrs,
                                      const std::vector<TBlob> &inputs,
                                      const std::vector<OpReqType> &req,
                                      const std::vector<TBlob> &outputs) {
-  std::cout << "NAIVE\n";
-  std::cerr << "NAIVE\n";
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), 1U);
   mshadow::Stream<xpu> *s = ctx.get_stream<xpu>();

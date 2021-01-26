@@ -101,7 +101,6 @@ static void SpatialAdaptiveAveragePooling_updateGradInput_frame(
           int64_t isizeW,
           int64_t osizeH,
           int64_t osizeW) {
-    std::cout << "SpatialAdaptiveAveragePooling_updateGradInput_frame\n";
   int64_t d;
 #pragma omp parallel for private(d) \
 num_threads(engine::OpenMP::Get()->GetRecommendedOMPThreadCount())
@@ -140,7 +139,6 @@ template<typename xpu, typename DType, typename AccReal>
 void AdaptiveAvgPoolUpdateOutput(mshadow::Stream<cpu> *s,
                                            const std::vector<TBlob> &input,
                                            const std::vector<TBlob> &output) {
-    std::cout << "AdaptiveAvgPoolUpdateOutput\n";
   Tensor<xpu, 4, DType> itensor = input[0].get<xpu, 4, DType>(s);
   Tensor<xpu, 4, DType> otensor = output[0].get<xpu, 4, DType>(s);
 
@@ -217,11 +215,10 @@ void AdaptiveAvgPoolComputeExCPU(const nnvm::NodeAttrs& attrs,
       const AdaptiveAvgPoolParam &param = nnvm::get<AdaptiveAvgPoolParam>(attrs.parsed);
       const NDArray *workspace = nullptr;
       MKLDNN_OPCHECK_INIT(false, 1, inputs, outputs);
-      std::cout << "HERE\n";
       MKLDNNAdaptivePoolingCompute(ctx, param, inputs[0], req[0], outputs[0], workspace);
       return;
-  } 
-  //LOG(FATAL) << "Adaptive Average Pooling is only supported by MKLDNN Beckend";
+  }
+  LOG(FATAL) << "Adaptive Average Pooling is only supported by MKLDNN Beckend";
 }
 
 inline static bool AdaptivePoolingStorageType(const nnvm::NodeAttrs &attrs,
@@ -237,20 +234,6 @@ inline static bool AdaptivePoolingStorageType(const nnvm::NodeAttrs &attrs,
                            dispatch_mode, in_attrs, out_attrs);
 }
 #endif
-/*
-struct AdaptiveAvgPoolParam : public dmlc::Parameter<AdaptivePoolingParam> {
-    mxnet::TShape kernel;
-    int pool_type;
-    DMLC_DECLARE_PARAMETER(AdaptiveAvgPoolParam) {
-    DMLC_DECLARE_FIELD(kernel).set_default(mxnet::TShape(0, 0))  // add default value here
-        .enforce_nonzero()
-        .describe("Pooling kernel size: (y, x) or (d, y, x)");
-     DMLC_DECLARE_FIELD(pool_type).set_default(pool_enum::kAvgPooling)
-         .add_enum("avg", pool_enum::kAvgPooling)
-         .describe("Pooling type to be applied.");
-}   
-};
-*/
 
 DMLC_REGISTER_PARAMETER(AdaptiveAvgPoolParam);
 NNVM_REGISTER_OP(_contrib_AdaptiveAvgPooling2D)
@@ -292,6 +275,7 @@ NNVM_REGISTER_OP(_backward_contrib_AdaptiveAvgPooling2D)
 
 }  // namespace op
 }  // namespace mxnet
+
 namespace std {
     template<>
         struct hash<mxnet::op::AdaptiveAvgPoolParam> {
