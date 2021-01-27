@@ -67,13 +67,9 @@ class MKLDNNAdaptivePoolingFwd {
                 const NDArray &output,
                 const NDArray *workspace) {
             NDArray in_buffer = input;
-            std::cout << "GGGGGGGGGGGGGGGGGGGGGGGGG\n";
             if(input.IsView() && input.IsMKLDNNData()) in_buffer = input.Reorder2Default();
-            std::cout << "FFFFFFFFFFFFFFFFFFFFFFFFFFF\n";
             auto input_mem = in_buffer.GetMKLDNNData();
-            std::cout << "EEEEEEEEEEEEEEEEEEEEEEEEEE\n";
             auto output_mem_t = CreateMKLDNNMem(output, this->fwd_pd_->dst_desc(), req);
-            std::cout << "HHHHHHHHHHHHHHHHHHHHHHHHHH\n";
             mkldnn_args_map_t args = {
                 {MKLDNN_ARG_SRC, *input_mem},
                 {MKLDNN_ARG_DST, *(output_mem_t.second) }
@@ -120,11 +116,8 @@ class MKLDNNAdaptivePoolingFwd {
             if (is_train && prop == mkldnn::prop_kind::forward_scoring) {
                 LOG(INFO) << "MKLDNN Pooling: training with prop_kind is forward_scoring";
             }
-            std::cout << "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n";
             const auto fwd_desc = mkldnn::pooling_forward::desc(prop, alg_kind, src_md, dst_md, strides, kernel, pad_l, pad_r);
-            std::cout << "AAAAAAAAAAAAAAA\n";
             this->fwd_pd_.reset(new mkldnn::pooling_forward::primitive_desc(fwd_desc, engine));
-            std::cout << "LLLLLLLLLLLLLLLLLLLLL\n";
             this->fwd_.reset(new mkldnn::pooling_forward(*(this->fwd_pd_)));
         }
 };
@@ -143,6 +136,9 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
         const bool is_train,
         const NDArray &input,
         const NDArray &output) {
+    if(input.shape().ndim() != 4) {
+        LOG(FATAL) << "MKLDNN Adaptive Avg Pool 2d: Expect only 2D input";
+    }
     typedef ParamOpSign<T> MKLDNNPoolingSignature;
 #if DMLC_CXX11_THREAD_LOCAL
   static thread_local std::unordered_map<MKLDNNPoolingSignature,
@@ -163,28 +159,18 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
 
    auto it = pooling_fwds.find(key);
    if(it == pooling_fwds.end()) {
-       // This kernel is not implemented;
        auto data_md = input.GetMKLDNNData()->get_desc();
        const int kernel_ndims = input.shape().ndim();
 
-       // MKDLNN dims have been created;
-       mkldnn::memory::dims kernel(kernel_ndims);
-       mkldnn::memory::dims strides(kernel_ndims);
-       mkldnn::memory::dims pad_l(kernel_ndims);
-       mkldnn::memory::dims pad_r(kernel_ndims);
-
-       const int64_t sizeB = input.shape()[0];
-       const int64_t sizeD  = input.shape()[1];
-       const int64_t isizeH = input.shape()[2];
-       const int64_t isizeW = input.shape()[3];
-
-       const int64_t osizeH = output.shape()[2];
-       const int64_t osizeW = output.shape()[3];
+       mkldnn::memory::dims kernel(kernel_ndims - 2);
+       mkldnn::memory::dims strides(kernel_ndims - 2);
+       mkldnn::memory::dims pad_l(kernel_ndims - 2);
+       mkldnn::memory::dims pad_r(kernel_ndims - 2);
 
        auto update_kernel = [&](mkldnn::memory::dims &kernel, const NDArray &in_data, const NDArray &out_data) {
            for(int64_t idx = 2; idx < in_data.shape().ndim(); ++idx) {
                const auto s1 = in_data.shape()[idx];
-               const auto s2 = out_data.shape()[idx];
+               auto s2 = out_data.shape()[idx];
                if(s2 == 0) { LOG(FATAL) << "Output size can not be zero"; }
                if(s1 % s2 != 0) {
                    LOG(FATAL) << "Input size is not divisible by the output size  s1 mod s2 != 0"; 
@@ -192,8 +178,9 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
                kernel[idx-2] = s1 / s2;
            }
        };
+
        auto update_padding = [&](mkldnn::memory::dims &kernel, int input_dim) {
-           for(int64_t idx = 0; idx < input_dim; ++idx) { 
+           for(int64_t idx = 0; idx < input_dim - 2; ++idx) {
                kernel[idx] = 0;
            }
        };
@@ -207,23 +194,23 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
                }
                return stride;
            };
-           for(int64_t idx = 0; idx  < in_data.shape().ndim(); ++idx) {
+           for(int64_t idx = 0; idx  < in_data.shape().ndim() - 2; ++idx) {
                kernel[idx] = get_stride(in_data, idx);
            }
        };
 
-       if(kernel_ndims == 1) {  }
-       if(kernel_ndims == 2) {
-       }
-       if(kernel_ndims == 3) {  }
-       if(kernel_ndims == 4) {
-           update_kernel(kernel, input, output);
-           update_padding(pad_l, input.shape().ndim());
-           update_padding(pad_r, input.shape().ndim());
-           update_strides(strides, input);
-       }
-       mkldnn::algorithm kind = mkldnn::algorithm::pooling_avg_exclude_padding;
-       MKLDNNAdaptivePoolingFwd fwd(input, output, kernel, strides, pad_l, pad_r, kind, false, false); 
+       update_kernel(kernel, input, output);
+       update_padding(pad_l, input.shape().ndim());
+       update_padding(pad_r, input.shape().ndim());
+       update_strides(strides, input);
+
+       mkldnn::memory::validate_dims(kernel);
+       mkldnn::memory::validate_dims(strides);
+       mkldnn::memory::validate_dims(pad_l);
+       mkldnn::memory::validate_dims(pad_r);
+
+       mkldnn::algorithm kind = mkldnn::algorithm::pooling_avg;//_exclude_padding;
+       MKLDNNAdaptivePoolingFwd fwd(input, output, kernel, kernel, pad_l, pad_r, kind, false, false);
        it = AddToCache(&pooling_fwds, key, fwd);
    }
    return it->second;
