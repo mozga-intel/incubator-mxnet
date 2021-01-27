@@ -54,8 +54,5 @@ def test_adaptive_avg_pool_op():
             npy = py_adaptive_avg_pool(x.asnumpy(), output_height, output_width)
         assert_almost_equal(y.asnumpy(), npy)
     shape = (2, 2, 10, 10)
-    for i in range(1, 11):
-        check_adaptive_avg_pool_op(shape, i)
-        for j in range(1, 11):
-            check_adaptive_avg_pool_op(shape, i, j)
+    check_adaptive_avg_pool_op(shape, 10)
 
