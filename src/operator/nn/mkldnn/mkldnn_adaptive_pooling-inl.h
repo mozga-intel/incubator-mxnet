@@ -122,15 +122,6 @@ class MKLDNNAdaptivePoolingFwd {
         }
 };
 
-inline int get_stride(const NDArray &tensor, int idx) {
-    int stride = 1;
-    int Dim = tensor.shape().ndim();
-    for (int i = Dim-2; i >= idx; --i) {
-        stride *= tensor.shape()[i+1];
-    }
-    return stride;
-}
-
 template<typename T>
 MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
         const bool is_train,
@@ -149,7 +140,6 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
                                             MKLDNNAdaptivePoolingFwd,
                                             OpHash> pooling_fwds;
 #endif
-   // TODO is always true
    bool with_workspace = is_train && true;
    MKLDNNPoolingSignature key(param);
    key.AddSign(is_train);
@@ -209,7 +199,7 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
        mkldnn::memory::validate_dims(pad_l);
        mkldnn::memory::validate_dims(pad_r);
 
-       mkldnn::algorithm kind = mkldnn::algorithm::pooling_avg;//_exclude_padding;
+       mkldnn::algorithm kind = mkldnn::algorithm::pooling_avg;
        MKLDNNAdaptivePoolingFwd fwd(input, output, kernel, kernel, pad_l, pad_r, kind, false, false);
        it = AddToCache(&pooling_fwds, key, fwd);
    }
