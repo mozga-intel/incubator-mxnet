@@ -38,10 +38,10 @@ template<typename TH, typename... TA> void _dbg(const char* sdbg, TH h, TA... t)
 #ifdef LOCAL
 #define debug(...) _dbg(#__VA_ARGS__, __VA_ARGS__)
 #define debugv(x) {{std::cerr <<#x <<" = "; FORE(itt, (x)) std::cerr <<*itt <<", "; std::cerr <<endl; }}
-#else
-#define debug(...) (__VA_ARGS__)
-#define debugv(x)
-#define cerr if(0)cout
+//#else
+//#define debug(...) (__VA_ARGS__)
+//#define debugv(x)
+//#define cerr if(0)std::cout
 #endif
 
 namespace mxnet {
@@ -61,15 +61,19 @@ class MKLDNNAdaptivePoolingFwd {
                 Init(input, output, kernel, strides, pad_l, pad_r, is_train, alg_kind);
             }
         ~MKLDNNAdaptivePoolingFwd() { }
+        void Execute() { }
         void Execute(const NDArray &input,
                 const OpReqType req,
                 const NDArray &output,
                 const NDArray *workspace) {
             NDArray in_buffer = input;
+            std::cout << "GGGGGGGGGGGGGGGGGGGGGGGGG\n";
             if(input.IsView() && input.IsMKLDNNData()) in_buffer = input.Reorder2Default();
+            std::cout << "FFFFFFFFFFFFFFFFFFFFFFFFFFF\n";
             auto input_mem = in_buffer.GetMKLDNNData();
+            std::cout << "EEEEEEEEEEEEEEEEEEEEEEEEEE\n";
             auto output_mem_t = CreateMKLDNNMem(output, this->fwd_pd_->dst_desc(), req);
-
+            std::cout << "HHHHHHHHHHHHHHHHHHHHHHHHHH\n";
             mkldnn_args_map_t args = {
                 {MKLDNN_ARG_SRC, *input_mem},
                 {MKLDNN_ARG_DST, *(output_mem_t.second) }
@@ -116,8 +120,11 @@ class MKLDNNAdaptivePoolingFwd {
             if (is_train && prop == mkldnn::prop_kind::forward_scoring) {
                 LOG(INFO) << "MKLDNN Pooling: training with prop_kind is forward_scoring";
             }
+            std::cout << "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n";
             const auto fwd_desc = mkldnn::pooling_forward::desc(prop, alg_kind, src_md, dst_md, strides, kernel, pad_l, pad_r);
+            std::cout << "AAAAAAAAAAAAAAA\n";
             this->fwd_pd_.reset(new mkldnn::pooling_forward::primitive_desc(fwd_desc, engine));
+            std::cout << "LLLLLLLLLLLLLLLLLLLLL\n";
             this->fwd_.reset(new mkldnn::pooling_forward(*(this->fwd_pd_)));
         }
 };
@@ -166,53 +173,57 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
        mkldnn::memory::dims pad_l(kernel_ndims);
        mkldnn::memory::dims pad_r(kernel_ndims);
 
-       int64_t sizeB = input.shape()[0];
-       int64_t sizeD  = input.shape()[1];
-       int64_t isizeH = input.shape()[2];
-       int64_t isizeW = input.shape()[3];
+       const int64_t sizeB = input.shape()[0];
+       const int64_t sizeD  = input.shape()[1];
+       const int64_t isizeH = input.shape()[2];
+       const int64_t isizeW = input.shape()[3];
 
-       int64_t istrideB = get_stride(input, 0);
-       int64_t istrideD = get_stride(input, 1);
-       int64_t istrideH = get_stride(input, 2);
-       int64_t istrideW = get_stride(input, 3);
+       const int64_t osizeH = output.shape()[2];
+       const int64_t osizeW = output.shape()[3];
 
-       int64_t osizeH = output.shape()[2];
-       int64_t osizeW = output.shape()[3];
+       auto update_kernel = [&](mkldnn::memory::dims &kernel, const NDArray &in_data, const NDArray &out_data) {
+           for(int64_t idx = 2; idx < in_data.shape().ndim(); ++idx) {
+               const auto s1 = in_data.shape()[idx];
+               const auto s2 = out_data.shape()[idx];
+               if(s2 == 0) { LOG(FATAL) << "Output size can not be zero"; }
+               if(s1 % s2 != 0) {
+                   LOG(FATAL) << "Input size is not divisible by the output size  s1 mod s2 != 0"; 
+               }
+               kernel[idx-2] = s1 / s2;
+           }
+       };
+       auto update_padding = [&](mkldnn::memory::dims &kernel, int input_dim) {
+           for(int64_t idx = 0; idx < input_dim; ++idx) { 
+               kernel[idx] = 0;
+           }
+       };
 
-   
-       std::cout << "kernel_out_size = " << output.shape().ndim() << std::endl; 
-       std::cout << "Kernel_in_size = " <<  input.shape().ndim() << std::endl;
-       std::cout << "sizeB: " << sizeB << " sizeD: " << sizeD << " iSzieH: " << isizeH << " isize: = " << isizeW << std::endl; 
-       std::cout << "istrideB: " << istrideB << " istrideD:" << istrideD << " istrideH" << istrideH << " istrideW" << istrideW << std::endl;
-       std::cout << "osize:" << osizeH << " osizeW:" << osizeW << std::endl;
+       auto update_strides = [&](mkldnn::memory::dims &kernel, const NDArray &in_data) {
+           auto get_stride = [&](const NDArray &tensor, int idx) {
+               int stride = 1;
+               const int Dim = tensor.shape().ndim();
+               for (int i = Dim-2; i >= idx; --i) {
+                   stride *= tensor.shape()[i+1];
+               }
+               return stride;
+           };
+           for(int64_t idx = 0; idx  < in_data.shape().ndim(); ++idx) {
+               kernel[idx] = get_stride(in_data, idx);
+           }
+       };
 
        if(kernel_ndims == 1) {  }
-       if(kernel_ndims == 1) {  }
-       if(kernel_ndims == 2) {  }
+       if(kernel_ndims == 2) {
+       }
        if(kernel_ndims == 3) {  }
        if(kernel_ndims == 4) {
-           kernel[0] = 0;//sizeB;
-           kernel[1] = 0;///sizeD;
-           kernel[2] = 0;///isizeH;
-           kernel[3] = 0;//isizeW;
-
-           strides[0] = 0;//istrideB;
-           strides[1] = 0;//istrideD;
-           strides[2] = 0;//istrideH;
-           strides[3] = 0;//istrideW;
-
-           pad_l[0] = 0;
-           pad_l[1] = 0;
-           pad_l[2] = 0;
-           pad_l[3] = 0;
-
-           pad_r[0] = 0;
-           pad_r[1] = 0;
-           pad_r[2] = 0;
-           pad_r[3] = 0;
+           update_kernel(kernel, input, output);
+           update_padding(pad_l, input.shape().ndim());
+           update_padding(pad_r, input.shape().ndim());
+           update_strides(strides, input);
        }
-       mkldnn::algorithm kind = mkldnn::algorithm::pooling_avg;
-       MKLDNNAdaptivePoolingFwd fwd(input, output, kernel, strides, pad_l, pad_r, kind, true, true); 
+       mkldnn::algorithm kind = mkldnn::algorithm::pooling_avg_exclude_padding;
+       MKLDNNAdaptivePoolingFwd fwd(input, output, kernel, strides, pad_l, pad_r, kind, false, false); 
        it = AddToCache(&pooling_fwds, key, fwd);
    }
    return it->second;
