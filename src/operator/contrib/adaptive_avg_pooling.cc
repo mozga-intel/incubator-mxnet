@@ -51,7 +51,6 @@ static void SpatialAdaptiveAveragePooling_updateOutput_frame(
           int64_t istrideD,
           int64_t istrideH,
           int64_t istrideW) {
-    std::cout << "SpatialAdaptiveAveragePooling_updateOutput_frame " << sizeD << " " << isizeW << " " << isizeH << " " << osizeH << " " << osizeW << " " <<istrideD << " " << istrideH << " " << istrideW << "\n";
     int64_t d;
 #pragma omp parallel for private(d) \
 num_threads(engine::OpenMP::Get()->GetRecommendedOMPThreadCount())
@@ -204,6 +203,16 @@ num_threads(engine::OpenMP::Get()->GetRecommendedOMPThreadCount())
 }
 
 #if MXNET_USE_MKLDNN == 1
+bool CanMKLDNNSupportAveragePooling(const NDArray &in_data, const NDArray &out_data) { 
+    for(int64_t idx = 0; idx < in_data.shape().ndim(); ++idx) {
+        const auto s1 = in_data.shape()[idx];
+        const auto s2 = out_data.shape()[idx-2];
+        if(s2 == 0) { return false;}
+        if(s1 % s2 != 0) { return false; }
+    }
+    return true;
+}
+
 void AdaptiveAvgPoolComputeExCPU(const nnvm::NodeAttrs& attrs,
         const OpContext &ctx,
         const std::vector<NDArray> &inputs,
@@ -211,7 +220,7 @@ void AdaptiveAvgPoolComputeExCPU(const nnvm::NodeAttrs& attrs,
         const std::vector<NDArray> &outputs) {
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), 1U);
-  if(SupportMKLDNN(inputs[0])) {
+  if(CanMKLDNNSupportAveragePooling(inputs[0], outputs[0]) && SupportMKLDNN(inputs[0])) {
       const AdaptiveAvgPoolParam &param = nnvm::get<AdaptiveAvgPoolParam>(attrs.parsed);
       const NDArray *workspace = nullptr;
       MKLDNN_OPCHECK_INIT(false, 1, inputs, outputs);
@@ -281,8 +290,6 @@ namespace std {
         struct hash<mxnet::op::AdaptiveAvgPoolParam> {
             size_t operator()(const mxnet::op::AdaptiveAvgPoolParam &val) {
                 size_t ret = 0;
-                //ret = dmlc::HashCombine(ret, val.kernel);
-                //ret = dmlc::HashCombine(ret, val.pool_type);
                 return ret;
             }
         };
