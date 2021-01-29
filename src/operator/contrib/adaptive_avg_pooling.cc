@@ -220,7 +220,7 @@ void AdaptiveAvgPoolComputeExCPU(const nnvm::NodeAttrs& attrs,
         const std::vector<NDArray> &outputs) {
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), 1U);
-  if(CanMKLDNNSupportAveragePooling(inputs[0], outputs[0]) && SupportMKLDNN(inputs[0])) {
+  if(SupportMKLDNN(inputs[0])) {
       const AdaptiveAvgPoolParam &param = nnvm::get<AdaptiveAvgPoolParam>(attrs.parsed);
       const NDArray *workspace = nullptr;
       MKLDNN_OPCHECK_INIT(false, 1, inputs, outputs);
