@@ -152,10 +152,10 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
        auto data_md = input.GetMKLDNNData()->get_desc();
        const int kernel_ndims = input.shape().ndim();
 
-       mkldnn::memory::dims kernel(kernel_ndims - 2);
-       mkldnn::memory::dims strides(kernel_ndims - 2);
-       mkldnn::memory::dims pad_l(kernel_ndims - 2);
-       mkldnn::memory::dims pad_r(kernel_ndims - 2);
+       mkldnn::memory::dims kernel(kernel_ndims);
+       mkldnn::memory::dims strides(kernel_ndims);
+       mkldnn::memory::dims pad_l(kernel_ndims);
+       mkldnn::memory::dims pad_r(kernel_ndims);
 
        auto update_kernel = [&](mkldnn::memory::dims &kernel, const NDArray &in_data, const NDArray &out_data) {
            for(int64_t idx = 2; idx < in_data.shape().ndim(); ++idx) {
@@ -167,6 +167,24 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
                }
                kernel[idx-2] = s1 / s2;
            }
+       };
+
+       auto update_kernel_v2 = [&](mkldnn::memory::dims &kernel,
+               mkldnn::memory::dims &strides,
+               mkldnn::memory::dims &pad_l,
+               mkldnn::memory::dims &pad_r,
+               const NDArray &in_data, const NDArray &out_data) {
+           const int IH = in_data.shape()[2];
+           const int IW = in_data.shape()[3];
+           const int OH = out_data.shape()[2];
+           const int OW = out_data.shape()[3];
+
+           strides.at(0) = floor((IH << 1) / OH) - floor(IH / OH);
+           strides.at(1) = floor((IW << 1) / OW) - floor(IW / OW);
+           kernel.at(0) = ceil((IH << 1) / OH) - floor(IH / OH);
+           kernel.at(1) = ceil((IW << 1) / OW) - floor(IW / OW);
+           pad_l.at(0) = (strides.at(0) * (OH - 1) + kernel.at(0) - IH) / 2;
+           pad_l.at(1) = (strides.at(1) * (OW - 1) + kernel.at(1) - IW) / 2;
        };
 
        auto update_padding = [&](mkldnn::memory::dims &kernel, int input_dim) {
@@ -189,11 +207,11 @@ MKLDNNAdaptivePoolingFwd &GetPoolingFwd(const T &param,
            }
        };
 
-       update_kernel(kernel, input, output);
-       update_padding(pad_l, input.shape().ndim());
-       update_padding(pad_r, input.shape().ndim());
-       update_strides(strides, input);
-
+       //update_kernel(kernel, input, output);
+       //update_padding(pad_l, input.shape().ndim());
+       //update_padding(pad_r, input.shape().ndim());
+       //update_strides(strides, input);
+       update_kernel_v2(kernel, strides, pad_l, pad_r, input, output);
        mkldnn::memory::validate_dims(kernel);
        mkldnn::memory::validate_dims(strides);
        mkldnn::memory::validate_dims(pad_l);
