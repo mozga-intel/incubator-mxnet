@@ -33,6 +33,7 @@
 #include <string>
 #include <utility>
 #include "./operator_common.h"
+#include "nn/mkldnn/mkldnn_l2_normalization-inl.h"
 #include "./mshadow_op.h"
 
 namespace mxnet {

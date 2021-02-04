@@ -23,7 +23,6 @@
  * \brief l2 normalization operator
 */
 #include "./l2_normalization-inl.h"
-
 /* VisualStudio only supports openmp 2.0 */
 #ifdef _MSC_VER
 #define collapse(x)
@@ -127,9 +126,13 @@ template<>
 Operator* CreateOp<cpu>(L2NormalizationParam param, int dtype) {
   Operator* op = nullptr;
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
+#if MXNET_USE_MKLDNN == 1
+    op = new MKLDNNL2_NormalizationOpCPU<DType, L2NormalizationParam>(param);
+#elif
     op = new L2NormalizationOpCPU<DType>(param);
-  });
-  return op;
+#endif
+    });
+return op;
 }
 
 // DO_BIND_DISPATCH comes from static_operator_common.h
