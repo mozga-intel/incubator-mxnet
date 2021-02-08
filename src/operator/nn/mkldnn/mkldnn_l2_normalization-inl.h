@@ -26,7 +26,6 @@
 
 #include <mxnet/operator.h>
 #include <mkldnn.hpp>
-
 namespace mxnet {
 namespace op {
 
@@ -60,18 +59,18 @@ class MKLDNNL2_NormalizationOpCPU : public Operator {
             CHECK_EQ(in_data.size(), 1U);
             CHECK_EQ(out_data.size(), 2U);
 
-            constexpr int device_index = 1;
+            constexpr int device_index = 0;
             NDArray input_data(in_data[0], device_index);
             NDArray output_data(out_data[0], device_index);
 
             const auto src_md = input_data.GetMKLDNNData()->get_desc();
             const auto dst_md = GetMemDesc(output_data);
             const mkldnn::engine engine = CpuEngine::Get()->get_engine();
-
+            std::cout << input_data.shape().ndim() << " " << output_data.shape().ndim() << std::endl;
             const auto fwd_desc = mkldnn::reduction::desc(
                 mkldnn::algorithm::reduction_norm_lp_power_p_sum,
-                src_md, dst_md, /*power:=*/ 2, param_.eps);
-
+                src_md, dst_md, /*power:=*/ 0.f, 0.f);
+            std::cout << "HERE\n";
             this->fwd_pd_.reset(new mkldnn::reduction::primitive_desc(fwd_desc, engine));
             this->fwd_.reset(new mkldnn::reduction(*(this->fwd_pd_)));
 
