@@ -43,7 +43,9 @@
 #include "../operator_common.h"
 #include "../mxnet_op.h"
 #include "../mshadow_op.h"
-
+#if MXNET_USE_MKLDNN == 1
+#include "../nn/mkldnn/mkldnn_adaptive_pooling-inl.h"
+#endif
 namespace mxnet {
 namespace op {
 
@@ -52,6 +54,9 @@ struct AdaptiveAvgPoolParam : public dmlc::Parameter<AdaptiveAvgPoolParam> {
   DMLC_DECLARE_PARAMETER(AdaptiveAvgPoolParam) {
     DMLC_DECLARE_FIELD(output_size).set_default(mxnet::Tuple<int>())
     .describe("int (output size) or a tuple of int for output (height, width).");
+  }
+  bool operator==(const AdaptiveAvgPoolParam &other) const {
+      this->output_size == other.output_size;
   }
 };
 
