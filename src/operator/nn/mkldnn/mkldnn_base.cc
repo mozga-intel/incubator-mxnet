@@ -160,10 +160,14 @@ void MKLDNNMemoryCopy(const mkldnn::memory &mem, const mkldnn::memory* this_mem)
 bool CanWriteTo(const NDArray &out_arr,
                 const NDArray &in_arr,
                 const mkldnn::memory::desc &desc) {
+                      std::cout << "33\n";
   auto in_mem = in_arr.GetMKLDNNData();
+      std::cout << "333\n";
   bool add_same = in_mem->get_data_handle() == out_arr.GetMKLDNNData()->get_data_handle();
+      std::cout << "3333\n";
   bool pdesc_same = out_arr.GetMKLDNNData()->get_desc() == desc &&
       in_mem->get_desc() == desc;
+          std::cout << "3333\n";
   return add_same && pdesc_same;
 }
 
@@ -172,25 +176,35 @@ mkldnn_output_t CreateMKLDNNMem(const NDArray &out_arr,
                                 OpReqType req,
                                 const NDArray* in_arr) {
   if (kAddTo == req) {
+    std::cout << "1\n";
     auto tmp = TmpMemMgr::Get()->Alloc(desc);
+    std::cout << "2\n";
     return mkldnn_output_t(OutDataOp::AddBack, tmp);
   } else if (kWriteInplace == req && in_arr != nullptr && CanWriteTo(out_arr, *in_arr, desc)) {
+    std::cout << "3\n";
     mkldnn::memory *mem = const_cast<NDArray &>(out_arr).CreateMKLDNNData(desc);
     // mem is nullptr if out_arr is view and desc is MKLDNN format.
     // need to Reorder2Default before calling CreateMKLDNNMem
     CHECK(mem != nullptr);
+        std::cout << "4\n";
     return mkldnn_output_t(OutDataOp::Noop, mem);
   } else if (kWriteInplace == req) {
+        std::cout << "5\n";
     auto tmp = TmpMemMgr::Get()->Alloc(desc);
+        std::cout << "6\n";
     return mkldnn_output_t(OutDataOp::CopyBack, tmp);
   } else if (kWriteTo == req) {
+        std::cout << "7\n";
     mkldnn::memory *mem = const_cast<NDArray &>(out_arr).CreateMKLDNNData(desc);
     if (nullptr == mem) {
+          std::cout << "8\n";
       auto tmp = TmpMemMgr::Get()->Alloc(desc);
+          std::cout << "9\n";
       return mkldnn_output_t(OutDataOp::CopyBack, tmp);
     }
     return mkldnn_output_t(OutDataOp::Noop, mem);
   }
+      std::cout << "10\n";
   auto tmp = TmpMemMgr::Get()->Alloc(desc);
   return mkldnn_output_t(OutDataOp::Noop, tmp);
 }

@@ -126,11 +126,11 @@ template<>
 Operator* CreateOp<cpu>(L2NormalizationParam param, int dtype) {
   Operator* op = nullptr;
   MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
-//#if MXNET_USE_MKLDNN == 1
-    op = new MKLDNNL2_NormalizationOpCPU<DType, L2NormalizationParam>(param);
-//#elif
-//    op = new L2NormalizationOpCPU<DType>(param);
-//#endif
+#if MXNET_USE_MKLDNN == 1
+    op = new MKLDNNL2_NormalizationOpCPU<cpu, L2NormalizationParam>(param);
+#elif
+    op = new L2NormalizationOpCPU<DType>(param);
+#endif
     });
 return op;
 }
@@ -199,5 +199,15 @@ Example::
 )code" ADD_FILELINE)
 .add_argument("data", "NDArray-or-Symbol", "Input array to normalize.")
 .add_arguments(L2NormalizationParam::__FIELDS__());
+
 }  // namespace op
 }  // namespace mxnet
+namespace std {
+    template<>
+        struct hash<mxnet::op::L2NormalizationParam> {
+            size_t operator()(const mxnet::op::L2NormalizationParam &val) {
+                size_t ret = 0;
+                return ret;
+            }
+        };
+} // namespace std;
