@@ -23,16 +23,91 @@
  * \author Tao Lv
 */
 
-#if MXNET_USE_MKLDNN == 1
+//#if MXNET_USE_MKLDNN == 1
 
 #include "./mkldnn_pooling-inl.h"
 
 namespace mxnet {
 namespace op {
 
+enum class pooling_error_code {
+  operator_is_not_supported = 1,
+  fwd_scorring_error,
+  fwd_primitive_error,
+  empty_workspace,
+  dimension_is_not_supported,
+  unknown_method,
+};
+
+inline const char* pooling_error_map(pooling_error_code code ) noexcept {
+  switch(code) {
+    case pooling_error_code::operator_is_not_supported:
+      return "MKLDNN Pooling: algorithm is not supported";
+
+    case pooling_error_code::fwd_scorring_error:
+      return "MKLDNN Pooling: training with prop_kind is forward_scoring";
+
+    case pooling_error_code::fwd_primitive_error:
+      return "MKLDNN Pooling: forward primitive is nullptr";
+
+    case pooling_error_code::empty_workspace:
+      return "MKLDNN Pooling: incorrect workspace input";
+
+    case pooling_error_code::dimension_is_not_supported:
+      return "";
+    case pooling_error_code::unknown_method:
+      return "MKLDNN Pooling: Unknown pooling method.";
+
+    default
+      return nullptr;
+  }
+}
+
+mkldnn::algorithm GetMKLDNNPoolAlgo(const PoolingParam &param) {
+  switch (param.pool_type) {
+    case pool_enum::kMaxPooling:
+      return mkldnn::algorithm::pooling_max;
+    case pool_enum::kAvgPooling:
+      if (param.count_include_pad.has_value() && !param.count_include_pad.value()) {
+        return mkldnn::algorithm::pooling_avg_exclude_padding;
+      } else {
+        return mkldnn::algorithm::pooling_avg_include_padding;
+      }
+    default:
+      LOG(FATAL) << "MKLDNN Pooling: Unknown pooling method.";  
+  }
+}
+
 static inline mkldnn::memory::data_type get_data_type(const mkldnn::memory::desc &md) {
   return static_cast<mkldnn::memory::data_type>(md.data_type());
 }
+
+template <class T>
+struct Is {
+  const T d_;
+  bool in(const std::initializer_list<T>& values) {
+    return std::find(values.cbegin(), values.cend(), d_) != values.cend();
+  }
+}
+
+template <class T>
+struct Not {
+  const T d_;
+  bool not(const std::initializer_list<T>& values) {
+    return std::find(values.cbegin(), values.cend(), d_) == values.cend();
+  }
+}
+
+template<typename T>
+Is<T> is(T d) {
+  return Is<T>{d};
+}
+
+template<typename T>
+Is<T> Not(T d) {
+  return Is<T>{d};
+}
+
 
 void MKLDNNPoolingFwd::Init(const mxnet::NDArray &input, const mxnet::NDArray &output,
                             const mkldnn::memory::dims &kernel,
@@ -40,15 +115,27 @@ void MKLDNNPoolingFwd::Init(const mxnet::NDArray &input, const mxnet::NDArray &o
                             const mkldnn::memory::dims &pad_l,
                             const mkldnn::memory::dims &pad_r,
                             const bool is_train, const mkldnn::algorithm alg_kind) {
-  const auto src_md = input.GetMKLDNNData()->get_desc();
-  const auto dst_md = GetMemDesc(output);
-  const mkldnn::engine engine = CpuEngine::Get()->get_engine();
-  if (alg_kind != mkldnn::algorithm::pooling_max &&
+  auto poolingHasSupport = [](auto alg_kind){
+    return is(alg_kind).in( {
+      alg_kind != mkldnn::algorithm::pooling_max &&
       alg_kind != mkldnn::algorithm::pooling_avg &&
       alg_kind != mkldnn::algorithm::pooling_avg_include_padding &&
-      alg_kind != mkldnn::algorithm::pooling_avg_exclude_padding) {
+      alg_kind != mkldnn::algorithm::pooling_avg_exclude_padding
+    });
+  };
+
+  auto isForwardScorring = [](auto isTrain, auto prop) {
+    return is(isTrain).in(True) && is(prop).in( mkldnn::algorithm::pooling_avg);
+  };
+
+  if(poolingHasSupport) {
     LOG(FATAL) << "MKLDNN Pooling: algorithm is not supported";
   }
+
+  if(isForwardScorring(isTrain, alg_kind)) {
+    prop = 
+  }
+  
 
   mkldnn::prop_kind prop = mkldnn::prop_kind::forward_scoring;
   if (is_train && alg_kind != mkldnn::algorithm::pooling_avg) {
@@ -57,6 +144,10 @@ void MKLDNNPoolingFwd::Init(const mxnet::NDArray &input, const mxnet::NDArray &o
   if (is_train && prop == mkldnn::prop_kind::forward_scoring) {
     LOG(INFO) << "MKLDNN Pooling: training with prop_kind is forward_scoring";
   }
+
+  const auto src_md = input.GetMKLDNNData()->get_desc();
+  const auto dst_md = GetMemDesc(output);
+  const mkldnn::engine engine = CpuEngine::Get()->get_engine();
 
   const auto fwd_desc = mkldnn::pooling_forward::desc(prop, alg_kind, src_md, dst_md,
                                                       strides, kernel, pad_l, pad_r);
@@ -99,24 +190,6 @@ void MKLDNNPoolingFwd::Execute(const NDArray &in_data,
     MKLDNNStream::Get()->Submit();
   } else {
     LOG(FATAL) << "MKLDNN Pooling: forward primitive is nullptr";
-  }
-}
-
-mkldnn::algorithm GetMKLDNNPoolAlgo(const PoolingParam &param) {
-  switch (param.pool_type) {
-    case pool_enum::kMaxPooling:
-      return mkldnn::algorithm::pooling_max;
-      break;
-    case pool_enum::kAvgPooling:
-      if (param.count_include_pad.has_value() && !param.count_include_pad.value()) {
-        return mkldnn::algorithm::pooling_avg_exclude_padding;
-      } else {
-        return mkldnn::algorithm::pooling_avg_include_padding;
-      }
-      break;
-    default:
-      LOG(FATAL) << "MKLDNN Pooling: Unknown pooling method.";
-      return mkldnn::algorithm::pooling_max;
   }
 }
 
