@@ -87,6 +87,29 @@ class MKLDNNPoolingBwd {
   const mkldnn::pooling_backward::primitive_desc &GetPd();
 };
 
+
+inline bool check_support_mkldnn_pooling_dimnesion(const PoolingParam &param) {
+  return param.kernel.ndim() == 1 || param.kernel.ndim() == 2 ||
+         param.kernel.ndim() == 3;
+}
+
+inline bool support_mkldnn_pooling_type(const PoolingParam &param) {
+  return param.pool_type == pool_enum::kMaxPooling ||
+         param.pool_type == pool_enum::kMaxPooling;
+}
+
+inline bool support_mkldnn_pooling_layout(const PoolingParam &param) {
+  if (param.layout.has_value() == false) return false;
+  return param.layout.value() == mshadow::kNCW ||
+         param.layout.value() == mshadow::kNCHW ||
+         param.layout.value() == mshadow::kNCDHW;
+}
+
+inline bool support_mkldnn_pooling_data_type(int dtype) {
+  return dtype == mshadow::kFloat32 || dtype == mshadow::kBfloat16;
+}
+
+
 inline int GetPaddingSizeFull(dim_t x, int padl, int padr, int k, int s) {
   if ((x + padl + padr - k) % s != 0) {
     return (padr + s - ((x + padl + padr - k) % s));
