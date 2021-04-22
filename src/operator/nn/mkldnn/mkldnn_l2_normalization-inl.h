@@ -97,6 +97,7 @@ if (this->param_.mode == 0) {
       }
     NDArray norm_data(norm, device_index);
     NDArray data(data1, device_index);
+    std::cout << output_data.shape().ndim() << std::endl;
     Compute(data, norm_data, output_data, req[0], ctx, out_data);
 } else {
    mshadow::Shape<3> dshape =
@@ -161,12 +162,12 @@ if (this->param_.mode == 0) {
             const mxnet::NDArray &output, const mkldnn::algorithm alg_kind,
             const bool with_workspace, const OpContext &ctx,
             const std::vector<TBlob> &in_data) {
-    //auto dimension =  {input.shape()[0], input.shape()[1], input.shape()[2]};
-    //auto format_tag = mkldnn::memory::format_tag::abc;
-    //if(input.shape().ndim() == 2) {
+    auto dimension =  {input.shape()[0], input.shape()[1], input.shape()[2]};
+    auto format_tag = mkldnn::memory::format_tag::abc;
+    if(input.shape().ndim() == 2) {
      auto dimension =  {input.shape()[0], input.shape()[1]};
-     auto  format_tag = mkldnn::memory::format_tag::ab;
-    //}
+     auto format_tag = mkldnn::memory::format_tag::ab;
+    }
     const auto src_md = mkldnn::memory::desc(
         dimension, mkldnn::memory::data_type::f32, format_tag);
     const auto norm_md = mkldnn::memory::desc(
