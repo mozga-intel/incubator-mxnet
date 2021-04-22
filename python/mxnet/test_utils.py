@@ -712,6 +712,8 @@ def assert_almost_equal(a, b, rtol=None, atol=None, names=('a', 'b'), equal_nan=
         a = a.asnumpy()
         b = b.asnumpy()
 
+    print(a)
+    print(b)
     index, rel = _find_max_violation(a, b, rtol, atol)
     if index != ():
         # a, b are the numpy arrays

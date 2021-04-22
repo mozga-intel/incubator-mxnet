@@ -32,6 +32,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include "nn/mkldnn/mkldnn_l2_normalization-inl.h"
 #include "./operator_common.h"
 #include "./mshadow_op.h"
 
@@ -50,6 +51,7 @@ enum L2NormalizationBackResource {kTempSpace};
 struct L2NormalizationParam : public dmlc::Parameter<L2NormalizationParam> {
   float eps;
   int mode;
+  mxnet::Tuple<int> output_size;
   DMLC_DECLARE_PARAMETER(L2NormalizationParam) {
     DMLC_DECLARE_FIELD(eps).set_default(1e-10f)
     .describe("A small constant for numerical stability.");
@@ -59,6 +61,9 @@ struct L2NormalizationParam : public dmlc::Parameter<L2NormalizationParam> {
     .add_enum("channel", l2_normalization::kChannel)
     .set_default(l2_normalization::kInstance)
     .describe("Specify the dimension along which to compute L2 norm.");
+  }
+  bool operator==(const L2NormalizationParam &other) const {
+      return this->output_size == other.output_size;
   }
 };
 

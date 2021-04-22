@@ -126,10 +126,18 @@ class L2NormalizationOpCPU : public L2NormalizationOp<cpu, DType> {
 template<>
 Operator* CreateOp<cpu>(L2NormalizationParam param, int dtype) {
   Operator* op = nullptr;
-  MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
+ // MSHADOW_REAL_TYPE_SWITCH_EX(dtype, DType, AccReal, {
+ //       op = new MKLDNNL2_NormalizationOpCPU<cpu, L2NormalizationParam, DType>(param);
+//
+//  });
+MSHADOW_REAL_TYPE_SWITCH(dtype, DType, {
+#if MXNET_USE_MKLDNN == 1
+    op = new MKLDNNL2_NormalizationOpCPU<cpu, L2NormalizationParam, DType>(param);
+#elif
     op = new L2NormalizationOpCPU<DType>(param);
-  });
-  return op;
+#endif
+    });
+return op;
 }
 
 // DO_BIND_DISPATCH comes from static_operator_common.h
@@ -198,3 +206,12 @@ Example::
 .add_arguments(L2NormalizationParam::__FIELDS__());
 }  // namespace op
 }  // namespace mxnet
+namespace std {
+    template<>
+        struct hash<mxnet::op::L2NormalizationParam> {
+            size_t operator()(const mxnet::op::L2NormalizationParam &val) {
+                size_t ret = 0;
+                return ret;
+            }
+        };
+} // namespace std;
