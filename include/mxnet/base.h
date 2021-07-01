@@ -542,9 +542,7 @@ inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
 
 
 #if MXNET_USE_ONEDNN == 1 || MXNET_USE_INTGEMM == 1
-#ifdef __linux__
   constexpr size_t kMKLDNNAlign = 64;
-#endif
 #endif
 
 }  // namespace mxnet
