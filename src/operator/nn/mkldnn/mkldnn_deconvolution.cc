@@ -27,6 +27,7 @@
 #include "../deconvolution-inl.h"
 #include "./mkldnn_base-inl.h"
 #include "./mkldnn_ops-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -255,12 +256,12 @@ MKLDNNDeconvForward &GetDeconvFwd(const nnvm::NodeAttrs &attrs,
                                   const NDArray &data, const NDArray &weights,
                                   const NDArray *bias, const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<DeconvSignature, MKLDNNDeconvForward,
+  static thread_local phmap::flat_hash_map<DeconvSignature, MKLDNNDeconvForward,
                                          OpHash>
       fwds;
 #else
   static MX_THREAD_LOCAL
-      std::unordered_map<DeconvSignature, MKLDNNDeconvForward, OpHash>
+      phmap::flat_hash_map<DeconvSignature, MKLDNNDeconvForward, OpHash>
           fwds;
 #endif
   const DeconvolutionParam &param = nnvm::get<DeconvolutionParam>(attrs.parsed);
@@ -366,11 +367,11 @@ static inline MKLDNNDeconvBackwardData &GetDeconvBwdData(
     const DeconvolutionParam &param, const NDArray &data,
     const NDArray &weights, const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNDeconvSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNDeconvSignature,
                                          MKLDNNDeconvBackwardData, OpHash>
       bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNDeconvSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNDeconvSignature,
                                             MKLDNNDeconvBackwardData, OpHash>
       bwds;
 #endif
@@ -421,11 +422,11 @@ static inline MKLDNNDeconvBackwardWeights &GetDeconvBwdWeights(
     const NDArray &weights, const NDArray &output,
     const mkldnn::convolution_forward::primitive_desc &bwd_data_pd) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNDeconvSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNDeconvSignature,
                                          MKLDNNDeconvBackwardWeights, OpHash>
       bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNDeconvSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNDeconvSignature,
                                             MKLDNNDeconvBackwardWeights, OpHash>
       bwds;
 #endif

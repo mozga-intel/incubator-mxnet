@@ -36,6 +36,7 @@
 #include "../../operator_common.h"
 #include "mkldnn_act-inl.h"
 #include "./mkldnn_base-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -134,9 +135,9 @@ MKLDNNActForward &GetActForward(const MKLDNNActParam& param,
                                 const OpContext &ctx, const NDArray &in_data,
                                 const mkldnn::memory &in_mem) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
+  static thread_local phmap::flat_hash_map<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
 #endif
   MKLDNNActSignature key(param);
   key.AddSign(ctx.is_train);
@@ -218,9 +219,9 @@ static inline MKLDNNActBackward &GetActBackward(const MKLDNNActParam &param,
                                                 const NDArray &out_grad,
                                                 const mkldnn::memory &in_mem) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
+  static thread_local phmap::flat_hash_map<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
 #endif
   MKLDNNActSignature key(param);
   key.AddSign(in_data);

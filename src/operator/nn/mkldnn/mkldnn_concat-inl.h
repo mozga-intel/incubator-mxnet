@@ -32,6 +32,7 @@
 #include "../concat-inl.h"
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -52,9 +53,9 @@ static MKLDNNConcatFwd &GetConcatForward(
     int concat_dim, const std::vector<NDArray> &in_data,
     const std::vector<mkldnn::memory::desc> &data_md) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
+  static thread_local phmap::flat_hash_map<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
 #endif
   OpSignature key;
   key.AddSign(concat_dim);

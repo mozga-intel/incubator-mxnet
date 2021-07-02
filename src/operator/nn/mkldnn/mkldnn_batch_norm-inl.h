@@ -33,6 +33,7 @@
 #include "../batch_norm-inl.h"
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 #define VARIANCE_TO_INVSTD(__var$,    __eps$)   (1.0/std::sqrt((__var$) + DType(__eps$)))
 #define INVSTD_TO_VARIANCE(__invstd$, __eps$)   ((1.0 / ((__invstd$) * (__invstd$))) - (__eps$))
@@ -126,9 +127,9 @@ static MKLDNNBNForward &GetBNForward(const BatchNormParam& param,
                                      const OpContext &ctx, const mkldnn::memory *data_mem,
                                      mkldnn::normalization_flags flags) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
+  static thread_local phmap::flat_hash_map<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
 #endif
   MKLDNNBNSignature key(param);
   key.AddSign(ctx.is_train);
@@ -291,9 +292,9 @@ static MKLDNNBNBackward &GetBNBackward(
     const mkldnn::memory &in_mem, const NDArray &diff_data,
     const mkldnn::memory &diff_mem, mkldnn::normalization_flags flags) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
+  static thread_local phmap::flat_hash_map<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
 #endif
   MKLDNNBNSignature key(param);
   key.AddSign(in_data);

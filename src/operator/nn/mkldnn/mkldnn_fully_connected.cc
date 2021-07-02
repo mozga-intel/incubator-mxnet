@@ -26,6 +26,7 @@
 
 #if MXNET_USE_ONEDNN == 1
 #include "mkldnn_fully_connected-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -125,10 +126,10 @@ MKLDNNFullyConnectedForward &GetFCFwd(
     const NDArray &data, const NDArray &weight,
     const NDArray *bias, const mkldnn::memory::desc &out_md) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNFullyconSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNFullyconSignature,
               MKLDNNFullyConnectedForward, OpHash> fcFwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNFullyconSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNFullyconSignature,
               MKLDNNFullyConnectedForward, OpHash> fcFwds;
 #endif
   MKLDNNFullyconSignature key(param);
@@ -142,7 +143,7 @@ MKLDNNFullyConnectedForward &GetFCFwd(
   if (it == fcFwds.end()) {
     MKLDNNFCFullParam full_param;
     full_param.default_param = param;
-    full_param.mkldnn_param.Init(std::unordered_map<std::string, std::string>());
+    full_param.mkldnn_param.Init(phmap::flat_hash_map<std::string, std::string>());
     MKLDNNFullyConnectedForward fcFwd(full_param, is_train, data, weight, bias, out_md);
     it = AddToCache(&fcFwds, key, fcFwd);
   }

@@ -27,6 +27,7 @@
 #include "../../operator_common.h"
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -82,9 +83,9 @@ static MKLDNNSumFwd &GetSumForward(
     const std::vector<float> &scales, const std::vector<NDArray> &in_data,
     const std::vector<mkldnn::memory::desc> &data_md) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<OpSignature, MKLDNNSumFwd, OpHash> fwds;
+  static thread_local phmap::flat_hash_map<OpSignature, MKLDNNSumFwd, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<OpSignature, MKLDNNSumFwd, OpHash> fwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<OpSignature, MKLDNNSumFwd, OpHash> fwds;
 #endif
   OpSignature key;
   key.AddSign(in_data);

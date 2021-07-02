@@ -28,6 +28,7 @@
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
 #include "./mkldnn_reshape-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -102,10 +103,10 @@ MKLDNNReshapeFwd &GetReshapeForward(const OpReqType &req,
                                     const NDArray &input,
                                     const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNReshapeSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNReshapeSignature,
                                          MKLDNNReshapeFwd, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNReshapeSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNReshapeSignature,
                                             MKLDNNReshapeFwd, OpHash> fwds;
 #endif
   MKLDNNReshapeSignature key;

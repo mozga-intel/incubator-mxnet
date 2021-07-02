@@ -26,6 +26,7 @@
 #if MXNET_USE_ONEDNN == 1
 
 #include "./mkldnn_pooling-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -260,11 +261,11 @@ MKLDNNPoolingFwd &GetPoolingFwd(const PoolingParam &param,
                                 const NDArray &data,
                                 const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNPoolingSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNPoolingSignature,
                                          MKLDNNPoolingFwd,
                                          OpHash> pooling_fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNPoolingSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNPoolingSignature,
                                             MKLDNNPoolingFwd,
                                             OpHash> pooling_fwds;
 #endif
@@ -320,11 +321,11 @@ MKLDNNPoolingBwd &GetPoolingBwd(const PoolingParam &param,
                                 const NDArray &out_grad) {
 #if DMLC_CXX11_THREAD_LOCAL
   static thread_local
-      std::unordered_map<MKLDNNPoolingSignature,
+      phmap::flat_hash_map<MKLDNNPoolingSignature,
                          MKLDNNPoolingBwd, OpHash> pooling_bwds;
 #else
   static MX_THREAD_LOCAL
-      std::unordered_map<MKLDNNPoolingSignature,
+      phmap::flat_hash_map<MKLDNNPoolingSignature,
                          MKLDNNPoolingBwd, OpHash> pooling_bwds;
 #endif
 

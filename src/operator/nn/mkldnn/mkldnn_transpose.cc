@@ -27,6 +27,7 @@
 
 #include <mkldnn.hpp>
 #include "../../tensor/matrix_op-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -120,10 +121,10 @@ class MKLDNNTransposeForward {
 static MKLDNNTransposeForward &GetTransposeForward(const TransposeParam& param,
                                                    const NDArray &data) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNTransposeSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNTransposeSignature,
                                          MKLDNNTransposeForward, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNTransposeSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNTransposeSignature,
                                             MKLDNNTransposeForward, OpHash> fwds;
 #endif
   MKLDNNTransposeSignature key(param);

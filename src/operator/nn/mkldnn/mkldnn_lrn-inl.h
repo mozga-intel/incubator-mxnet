@@ -31,6 +31,7 @@
 #include <mkldnn.hpp>
 #include "../lrn-inl.h"
 #include "./mkldnn_base-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -148,11 +149,11 @@ static MKLDNNLRNFwd &GetLRNFwd(const LRNParam& param,
                                const OpContext &ctx,
                                const NDArray &in_data) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNLRNSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNLRNSignature,
                                          MKLDNNLRNFwd,
                                          OpHash> lrn_fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNLRNSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNLRNSignature,
                                             MKLDNNLRNFwd,
                                             OpHash> lrn_fwds;
 #endif
@@ -224,10 +225,10 @@ static MKLDNNLRNBwd &GetLRNBwd(const LRNParam &param, const NDArray &in_data,
                                const NDArray &in_grad, const NDArray &out_grad) {
 #if DMLC_CXX11_THREAD_LOCAL
   static thread_local
-      std::unordered_map<MKLDNNLRNSignature, MKLDNNLRNBwd, OpHash> lrn_bwds;
+      phmap::flat_hash_map<MKLDNNLRNSignature, MKLDNNLRNBwd, OpHash> lrn_bwds;
 #else
   static MX_THREAD_LOCAL
-      std::unordered_map<MKLDNNLRNSignature, MKLDNNLRNBwd, OpHash> lrn_bwds;
+      phmap::flat_hash_map<MKLDNNLRNSignature, MKLDNNLRNBwd, OpHash> lrn_bwds;
 #endif
   MKLDNNLRNSignature key(param);
   key.AddSign(in_data);

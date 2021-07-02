@@ -28,6 +28,7 @@
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
 #include "./mkldnn_slice-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -73,9 +74,9 @@ void MKLDNNSliceFwd::Register() {
 MKLDNNSliceFwd &GetSliceForward(const SliceParam &param, const bool is_train,
                                 const NDArray &in_data, const NDArray &out_data) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNSliceSignature, MKLDNNSliceFwd, OpHash> fwds;
+  static thread_local phmap::flat_hash_map<MKLDNNSliceSignature, MKLDNNSliceFwd, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNSliceSignature, MKLDNNSliceFwd, OpHash> fwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNSliceSignature, MKLDNNSliceFwd, OpHash> fwds;
 #endif
   MKLDNNSliceSignature key(param);
   key.AddSign(is_train);

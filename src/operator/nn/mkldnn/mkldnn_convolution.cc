@@ -29,6 +29,7 @@
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
 #include "./mkldnn_convolution-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -481,7 +482,7 @@ MKLDNNConvBackward::MKLDNNConvBackward(const MKLDNNConvFullParam &param, const N
 static inline MKLDNNConvBackward &GetConvBwd(const MKLDNNConvFullParam &param, const NDArray &data,
                                              const NDArray &weight, const NDArray *bias,
                                              const NDArray &output) {
-  using mkldnn_conv_bwd_map = std::unordered_map<MKLDNNConvSignature, MKLDNNConvBackward, OpHash>;
+  using mkldnn_conv_bwd_map = phmap::flat_hash_map<MKLDNNConvSignature, MKLDNNConvBackward, OpHash>;
 #if DMLC_CXX11_THREAD_LOCAL
   static thread_local mkldnn_conv_bwd_map bwds;
 #else

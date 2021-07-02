@@ -59,6 +59,7 @@
 #include "mxnet/ndarray.h"
 #include "mxnet/op_attr_types.h"
 #include "mxnet/resource.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 #define MKLDNN_REAL_TYPE_SWITCH(type, DType, ...)   \
   switch (type) {                                   \
@@ -189,6 +190,16 @@ static typename std::unordered_map<S, I, H>::iterator AddToCache(
   return ins_return.first;
 }
 
+template<typename S, typename I, typename H>
+static typename phmap::flat_hash_map<S, I, H>::iterator AddToCache(
+    phmap::flat_hash_map<S, I, H>* cache, const S &key, const I &item) {
+  int mkldnn_cache_size = GetMKLDNNCacheSize();
+  if (mkldnn_cache_size != -1 && static_cast<int>(cache->size()) > mkldnn_cache_size)
+    cache->erase(cache->begin());
+  auto ins_return = cache->insert(std::pair<S, I>(key, item));
+  CHECK(ins_return.second);
+  return ins_return.first;
+}
 /*
  * This is to align address to a certain alignment.
  */

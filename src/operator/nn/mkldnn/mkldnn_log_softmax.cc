@@ -25,6 +25,7 @@
 #include "../softmax-inl.h"
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 #if MXNET_USE_ONEDNN == 1
 namespace mxnet {
@@ -102,11 +103,11 @@ static MKLDNNLogSoftmaxFwd &GetLogSoftmaxFwd(const SoftmaxParam &param,
                                              const NDArray &data,
                                              const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNSoftmaxSignature,
-                                         MKLDNNLogSoftmaxFwd,
-                                         OpHash> fwds;
+  static thread_local phmap::flat_hash_map<MKLDNNSoftmaxSignature,
+                                          MKLDNNLogSoftmaxFwd,
+                                          OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNSoftmaxSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNSoftmaxSignature,
                                             MKLDNNLogSoftmaxFwd,
                                             OpHash> fwds;
 #endif
@@ -170,11 +171,11 @@ static MKLDNNLogSoftmaxBwd &GetLogSoftmaxBwd(const SoftmaxParam &param,
                                              const std::vector<NDArray> &data,
                                              const std::vector<NDArray> &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNSoftmaxSignature,
+  static thread_local phmap::flat_hash_map<MKLDNNSoftmaxSignature,
                                          MKLDNNLogSoftmaxBwd,
                                          OpHash> bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNSoftmaxSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNSoftmaxSignature,
                                             MKLDNNLogSoftmaxBwd,
                                             OpHash> bwds;
 #endif

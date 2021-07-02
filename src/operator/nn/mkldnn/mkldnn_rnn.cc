@@ -28,6 +28,7 @@
 
 #include <numeric>
 #include "./mkldnn_rnn-inl.h"
+#include "../../../3rdparty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 namespace mxnet {
 namespace op {
@@ -384,10 +385,10 @@ void MKLDNNRnnForward::SetNewDataMem(void* x, void* hx, void* cx,
 inline void MKLDNNMemoryReorder(const mkldnn::memory& src,
                                 const mkldnn::memory& dst) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<OpSignature,
+  static thread_local phmap::flat_hash_map<OpSignature,
       mkldnn::reorder, OpHash> reorderPrimitives;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<OpSignature,
+  static MX_THREAD_LOCAL phmap::flat_hash_map<OpSignature,
       mkldnn::reorder, OpHash> reorderPrimitives;
 #endif
   OpSignature key{};
