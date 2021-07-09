@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+echo "Running pre-commit flake8 checker"
+python tools/lint/flake8_hook.py
