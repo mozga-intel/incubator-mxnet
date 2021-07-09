@@ -171,9 +171,11 @@ static MKLDNNSoftmaxBwd &GetSoftmaxBwd(const SoftmaxParam &param,
                                        const std::vector<NDArray> &data,
                                        const std::vector<NDArray> &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local phmap::flat_hash_map<MKLDNNSoftmaxSignature, MKLDNNSoftmaxBwd, OpHash> bwds;
+  static thread_local phmap::flat_hash_map<MKLDNNSoftmaxSignature,
+              MKLDNNSoftmaxBwd, OpHash> bwds;
 #else
-  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNSoftmaxSignature, MKLDNNSoftmaxBwd, OpHash> bwds;
+  static MX_THREAD_LOCAL phmap::flat_hash_map<MKLDNNSoftmaxSignature,
+              MKLDNNSoftmaxBwd, OpHash> bwds;
 #endif
 
   MKLDNNSoftmaxSignature key(param);
