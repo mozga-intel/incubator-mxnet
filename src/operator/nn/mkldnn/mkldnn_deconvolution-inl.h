@@ -74,7 +74,7 @@ inline mkldnn::memory::desc IOLogicalSwapDesc(const mkldnn::memory::desc &desc,
 inline void IOLogicalSwapMKLDNNMem(const NDArray &arr, const uint32_t num_group) {
   mkldnn::memory::desc desc;
   if (arr.IsMKLDNNData()) {
-    desc = arr.GetMKLDNNData()->get_desc();
+    desc = static_cast<const mkldnn::memory*>(arr.GetMKLDNNData())->get_desc();
   } else {
     // GetMKLDNNData won't take groups into account when creating mkldnn::memory, we need to use
     // descriptor from GetWeightDesc but with default format
@@ -83,7 +83,8 @@ inline void IOLogicalSwapMKLDNNMem(const NDArray &arr, const uint32_t num_group)
         temp.dims(), temp.data_type(),
         static_cast<mkldnn::memory::format_tag>(GetDefaultFormat(temp.data.ndims)));
   }
-  const_cast<NDArray &>(arr).UpdateMKLDNNMemDesc(IOLogicalSwapDesc(desc, num_group));
+  auto logical_swap = IOLogicalSwapDesc(desc, num_group);
+  const_cast<NDArray &>(arr).UpdateMKLDNNMemDesc(&logical_swap);
 }
 
 // Version of GetWeightsDesc for deconvolution (with swap)
@@ -146,7 +147,8 @@ MKLDNNDeconvFwd::MKLDNNDeconvFwd(const DeconvolutionParam &param, const Tensors 
 }
 
 inline const mkldnn::memory *MKLDNNDeconvFwd::DataMem(const NDArray &data) const {
-  return data.GetMKLDNNDataReorder(fwd_pd->src_desc());
+  auto fwd_src_desc = fwd_pd->src_desc();
+  return static_cast<const mkldnn::memory*>(data.GetMKLDNNDataReorder(&fwd_src_desc));
 }
 
 inline const mkldnn::memory *MKLDNNDeconvFwd::WeightsMem(const uint32_t num_group,
@@ -155,7 +157,7 @@ inline const mkldnn::memory *MKLDNNDeconvFwd::WeightsMem(const uint32_t num_grou
 }
 
 inline const mkldnn::memory *MKLDNNDeconvFwd::BiasMem(const NDArray &bias) const {
-  return bias.GetMKLDNNData();
+  return static_cast<const mkldnn::memory*>(bias.GetMKLDNNData());
 }
 
 inline mkldnn_output_t MKLDNNDeconvFwd::OutMem(const OpReqType req, const NDArray &out) const {
@@ -265,7 +267,8 @@ inline void MKLDNNDeconvBwd::IOSwapWeightsTensors(const uint32_t num_group,
 }
 
 inline const mkldnn::memory *MKLDNNDeconvBwd::DataMem(const NDArray &data) const {
-  return data.GetMKLDNNDataReorder(bwd_weights_pd->src_desc());
+  auto bwd_weight_src_desc = bwd_weights_pd->src_desc();
+  return static_cast<const mkldnn::memory*>(data.GetMKLDNNDataReorder(&bwd_weight_src_desc));
 }
 
 inline const mkldnn::memory *MKLDNNDeconvBwd::WeightsMem(const uint32_t num_group,
@@ -274,14 +277,17 @@ inline const mkldnn::memory *MKLDNNDeconvBwd::WeightsMem(const uint32_t num_grou
 }
 
 inline const mkldnn::memory *MKLDNNDeconvBwd::OutGradMem(const NDArray &out_grad) const {
-  return out_grad.GetMKLDNNDataReorder(bwd_data_pd->diff_dst_desc());
+  auto bwd_data_diff_desc = bwd_data_pd->diff_dst_desc();
+  return static_cast<const mkldnn::memory*>(out_grad.GetMKLDNNDataReorder(&bwd_data_diff_desc));
 }
 
 inline const mkldnn::memory *MKLDNNDeconvBwd::OutGradMem(
     const NDArray &out_grad, const mkldnn::memory *const out_grad_mem) const {
+  auto bwd_weight_diff_desc = bwd_weights_pd->diff_dst_desc();
   return (out_grad_mem && out_grad_mem->get_desc() == bwd_weights_pd->diff_dst_desc())
              ? out_grad_mem
-             : out_grad.GetMKLDNNDataReorder(bwd_weights_pd->diff_dst_desc());
+             : static_cast<const mkldnn::memory*>(
+                    out_grad.GetMKLDNNDataReorder(&bwd_weight_diff_desc));
 }
 
 inline mkldnn_output_t MKLDNNDeconvBwd::DataGradMem(const OpReqType req,
@@ -298,7 +304,8 @@ inline mkldnn_output_t MKLDNNDeconvBwd::WeightsGradMem(const uint32_t num_group,
   // swap, weights_md will have a default format
   const auto &weights_md = bwd_weights_pd->diff_weights_desc();
   if (req == OpReqType::kWriteTo && IsDefaultFormat(IOLogicalSwapDesc(weights_md, num_group))) {
-    return {OutDataOp::Noop, const_cast<NDArray &>(weights_grad).CreateMKLDNNData(weights_md)};
+    return {OutDataOp::Noop, static_cast<mkldnn::memory*>(
+      const_cast<NDArray &>(weights_grad).CreateMKLDNNData(&weights_md))};
   }
   return CreateMKLDNNWeightGrad(weights_grad, weights_md, req);
 }

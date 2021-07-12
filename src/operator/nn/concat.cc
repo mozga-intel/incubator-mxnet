@@ -251,7 +251,8 @@ bool SupportMKLDNNConcat(const std::vector<NDArray> &arrs) {
     // DO not support zero-size tensors.
     if (arr.shape().Size() == 0) return false;
     int ndim = arr.shape().ndim();
-    const int mkldnn_ndims = arr.GetMKLDNNData()->get_desc().data.ndims;
+    const int mkldnn_ndims = static_cast<const mkldnn::memory*>(
+      arr.GetMKLDNNData())->get_desc().data.ndims;
     if (!(ndim == 2 || ndim == 4) || ndim != mkldnn_ndims) return false;
   }
   return true;

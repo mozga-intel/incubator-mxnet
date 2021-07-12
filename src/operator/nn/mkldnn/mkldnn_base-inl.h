@@ -228,7 +228,8 @@ static int GetTypeSize(int dtype) {
 
 static inline size_t GetArraySize(const NDArray &arr) {
   if (arr.IsMKLDNNData()) {
-    return arr.GetMKLDNNData()->get_desc().get_size();
+    auto arr_data = static_cast<const mkldnn::memory*>(arr.GetMKLDNNData());
+    return arr_data->get_desc().get_size();
   }
   return arr.shape().Size() * GetTypeSize(arr.dtype());
 }

@@ -81,7 +81,7 @@ inline static void InitDefaultArray(NDArray *arr, bool is_rand = false, int max 
 inline static void InitMKLDNNArray(NDArray *arr, const mkldnn::memory::desc &desc,
                                    bool is_rand = false, int max = 50) {
   InitDefaultArray(arr, is_rand, max);
-  arr->MKLDNNDataReorderAsync(desc);
+  arr->MKLDNNDataReorderAsync(&desc);
   arr->WaitToRead();
 }
 

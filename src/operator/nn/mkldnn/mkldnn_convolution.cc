@@ -412,7 +412,8 @@ void MKLDNNConvolutionForwardFullFeature(const MKLDNNConvFullParam &param, const
   auto &weight = in_data[conv::kWeight];
   bool no_bias = param.conv_param.no_bias && !param.mkldnn_param.with_bn;
 
-  auto data_mem = data.GetMKLDNNDataReorder(fwd->GetPd().src_desc());
+  auto fwd_src_desc = fwd->GetPd().src_desc();
+  auto data_mem = static_cast<const mkldnn::memory*>(data.GetMKLDNNDataReorder(&fwd_src_desc));
   const mkldnn::memory *weight_mem;
   if (ctx.is_train) {
     // TODO(zhengda) kvstore doesn't handle MKLDNN correctly. Let's reorder it to the default format
@@ -427,23 +428,28 @@ void MKLDNNConvolutionForwardFullFeature(const MKLDNNConvFullParam &param, const
     if (weight.IsDefaultData()) {
       // We also need to modify the layout on the original weight array. The data conversion happens
       // after the weight array is used.
-      weight.MKLDNNDataReorderAsync(fwd->GetPd().weights_desc());
+      auto fwd_weight_desc = fwd->GetPd().weights_desc();
+      weight.MKLDNNDataReorderAsync(&fwd_weight_desc);
       weight_mem = GetWeights(weight, fwd->GetPd().weights_desc(), param.conv_param.num_group);
     } else {
-      weight_mem = weight.GetMKLDNNDataReorder(fwd->GetPd().weights_desc());
+      auto fwd_weight_desc = fwd->GetPd().weights_desc();
+      weight_mem = static_cast<const mkldnn::memory*>(
+        weight.GetMKLDNNDataReorder(&fwd_weight_desc);
     }
   }
   mkldnn_output_t out_mem;
   if (param.mkldnn_param.with_sum) {
     out_mem = mkldnn_output_t(OutDataOp::Noop,
-                              const_cast<mkldnn::memory *>(out_data[conv::kOut].GetMKLDNNData()));
+                              const_cast<mkldnn::memory *>(static_cast<const mkldnn::memory*>(
+                                out_data[conv::kOut].GetMKLDNNData())));
   } else {
     out_mem = CreateMKLDNNMem(out_data[conv::kOut], fwd->GetPd().dst_desc(), req[conv::kOut]);
   }
 
   mkldnn_args_map_t net_args;
   if (!no_bias) {
-    const mkldnn::memory *bias_mem = in_data[conv::kBias].GetMKLDNNData();
+    const mkldnn::memory *bias_mem = static_cast<const mkldnn::memory*>(
+                                in_data[conv::kBias].GetMKLDNNData());
     net_args.insert({MKLDNN_ARG_BIAS, *bias_mem});
   }
 
@@ -524,7 +530,9 @@ void MKLDNNConvolutionBackward(const nnvm::NodeAttrs& attrs, const OpContext &ct
 
   CHECK_NE(req[conv::kWeight], kWriteInplace) << "cannot write weight inplace";
   MKLDNNConvBackward &convBwd = GetConvBwd(full_param, data, weight, bias, out_grad);
-  auto out_grad_mem = out_grad.GetMKLDNNDataReorder(convBwd.GetDataPd().diff_dst_desc());
+  auto convBwd_data_diff_desc = convBwd.GetDataPd().diff_dst_desc();
+  auto out_grad_mem = static_cast<const mkldnn::memory*>(
+    out_grad.GetMKLDNNDataReorder(&convBwd_data_diff_desc));
   if (req[conv::kData]) {
     auto weight_mem = GetWeights(weight, convBwd.GetDataPd().weights_desc(), param.num_group);
     auto in_grad_mem = CreateMKLDNNMem(in_grad[conv::kData], convBwd.GetDataPd().diff_src_desc(),
@@ -536,9 +544,14 @@ void MKLDNNConvolutionBackward(const nnvm::NodeAttrs& attrs, const OpContext &ct
     CommitOutput(in_grad[conv::kData], in_grad_mem);
   }
   if (req[conv::kWeight] || req[conv::kBias]) {
-    if (convBwd.GetDataPd().diff_dst_desc() != convBwd.GetWeightsPd().diff_dst_desc())
-      out_grad_mem = out_grad.GetMKLDNNDataReorder(convBwd.GetWeightsPd().diff_dst_desc());
-    auto data_mem = data.GetMKLDNNDataReorder(convBwd.GetWeightsPd().src_desc());
+    if (convBwd.GetDataPd().diff_dst_desc() != convBwd.GetWeightsPd().diff_dst_desc()) {
+      auto convBwd_weight_diff_desc = convBwd.GetWeightsPd().diff_dst_desc();
+      out_grad_mem = static_cast<const mkldnn::memory*>(
+        out_grad.GetMKLDNNDataReorder(&convBwd_weight_diff_desc));
+    }
+    auto convBwd_weight_src_desc = convBwd.GetWeightsPd().src_desc();
+    auto data_mem = static_cast<const mkldnn::memory*>(
+      data.GetMKLDNNDataReorder(&convBwd_weight_src_desc));
     auto in_grad_weight = CreateMKLDNNWeightGrad(
         in_grad[conv::kWeight], convBwd.GetWeightsPd().diff_weights_desc(), req[conv::kWeight]);
 

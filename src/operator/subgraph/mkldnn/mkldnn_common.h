@@ -93,15 +93,16 @@ static void ConvertWeightBias2MKLDNN(NDArray *weight, NDArray *bias, bool has_bi
                                      const std::vector<float> &weight_scales,
                                      const bool submit = true) {
   MKLDNNStream *stream = MKLDNNStream::Get();
-  const auto new_weight = NDArray(weight_md);
-  const auto conv_weights_memory = new_weight.GetMKLDNNData();
+  const auto new_weight = NDArray(&weight_md);
+  const auto conv_weights_memory = static_cast<const mkldnn::memory*>(new_weight.GetMKLDNNData());
   mkldnn::primitive_attr weight_attr;
   if (weight_scales.size()) {
     const int weight_mask = (weight_scales.size()) == 1 ? 0 : 1;
     weight_attr.set_output_scales(weight_mask, weight_scales);
   }
   auto default_weights_memory = GetWeights(*weight, num_group);
-  if (default_weights_memory == nullptr) default_weights_memory = weight->GetMKLDNNData();
+  if (default_weights_memory == nullptr) default_weights_memory = 
+    static_cast<const mkldnn::memory*>(weight->GetMKLDNNData());
   const auto weight_reorder_pd =
       mkldnn::reorder::primitive_desc(*default_weights_memory, *conv_weights_memory, weight_attr);
   MKLDNNStream::Get()->RegisterPrimArgs(
@@ -113,12 +114,12 @@ static void ConvertWeightBias2MKLDNN(NDArray *weight, NDArray *bias, bool has_bi
     for (size_t c = 0; c < weight_scales.size(); ++c) {
       bias_scales[c] = weight_scales[c] * data_scale;
     }
-    new_bias = NDArray(*bias_md);
-    const auto conv_bias_memory = new_bias.GetMKLDNNData();
+    new_bias = NDArray(bias_md);
+    const auto conv_bias_memory = static_cast<const mkldnn::memory*>(new_bias.GetMKLDNNData());
     const int bias_mask = (bias_scales.size()) == 1 ? 0 : 1;
     mkldnn::primitive_attr bias_attr;
     bias_attr.set_output_scales(bias_mask, bias_scales);
-    auto bias_weights_memory = bias->GetMKLDNNData();
+    auto bias_weights_memory = static_cast<const mkldnn::memory*>(bias->GetMKLDNNData());
     const auto bias_reorder_pd =
         mkldnn::reorder::primitive_desc(*bias_weights_memory, *conv_bias_memory, bias_attr);
     MKLDNNStream::Get()->RegisterPrimArgs(

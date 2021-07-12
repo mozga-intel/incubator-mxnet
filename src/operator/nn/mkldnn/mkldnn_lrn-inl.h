@@ -111,7 +111,7 @@ void MKLDNNLRNFwd::_Init(const LRNParam &param,
                          bool is_train,
                          const NDArray &in_data) {
   mkldnn::memory::desc in_data_md =
-      in_data.GetMKLDNNData()->get_desc();
+      static_cast<const mkldnn::memory*>(in_data.GetMKLDNNData())->get_desc();
   this->fwd_pd =
       GetLRNFwdDesc(param, is_train, in_data_md);
 
@@ -125,7 +125,7 @@ void MKLDNNLRNFwd::Execute(const OpContext &ctx,
   auto output_mem_t = CreateMKLDNNMem(out_data, (this->fwd_pd).dst_desc(), req);
 
   mkldnn_args_map_t args = {
-    { MKLDNN_ARG_SRC, *in_data.GetMKLDNNData()},
+    { MKLDNN_ARG_SRC, *static_cast<const mkldnn::memory*>(in_data.GetMKLDNNData())},
     { MKLDNN_ARG_DST, *output_mem_t.second },
   };
   std::shared_ptr<mkldnn::memory> workspace;
@@ -209,8 +209,8 @@ class MKLDNNLRNBwd {
     auto engine = CpuEngine::Get()->get_engine();
     auto workspace = std::make_shared<mkldnn::memory>((this->fwd_pd).workspace_desc(), engine);
     mkldnn_args_map_t args = {
-      { MKLDNN_ARG_SRC, *in_data.GetMKLDNNData() },
-      { MKLDNN_ARG_DIFF_DST, *out_grad.GetMKLDNNData()},
+      { MKLDNN_ARG_SRC, *static_cast<const mkldnn::memory*>(in_data.GetMKLDNNData()) },
+      { MKLDNN_ARG_DIFF_DST, *static_cast<const mkldnn::memory*>(out_grad.GetMKLDNNData())},
       { MKLDNN_ARG_WORKSPACE, *workspace },
       { MKLDNN_ARG_DIFF_SRC, *diff_src_mem.second }
     };
@@ -237,9 +237,9 @@ static MKLDNNLRNBwd &GetLRNBwd(const LRNParam &param, const NDArray &in_data,
   auto it = lrn_bwds.find(key);
   if (it == lrn_bwds.end()) {
     const mkldnn::memory::desc in_data_md =
-        in_data.GetMKLDNNData()->get_desc();
+        static_cast<const mkldnn::memory*>(in_data.GetMKLDNNData())->get_desc();
     const mkldnn::memory::desc diff_md =
-        out_grad.GetMKLDNNData()->get_desc();
+        static_cast<const mkldnn::memory*>(out_grad.GetMKLDNNData())->get_desc();
     MKLDNNLRNBwd bwd(param, in_data_md, diff_md);
     it = AddToCache(&lrn_bwds, key, bwd);
   }

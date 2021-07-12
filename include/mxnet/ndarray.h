@@ -37,9 +37,6 @@
 #include <algorithm>
 #include <memory>
 #include <algorithm>
-#if MXNET_USE_MKLDNN == 1
-#include <mkldnn.hpp>
-#endif
 #include "./base.h"
 #include "./storage.h"
 #include "./engine.h"
@@ -704,12 +701,12 @@ class NDArray {
    * Create NDArray from mkldnn memory.
    * mkldnn_mem The mkldnn memory to be managed.
    */
-  explicit NDArray(const std::shared_ptr<mkldnn::memory> &mkldnn_mem);
+  explicit NDArray(const std::shared_ptr<void> &mkldnn_mem);
   /*
    * Create NDArray from mkldnn memory descriptor.
    * mem_pd The mkldnn memory descriptor to be created.
    */
-  explicit NDArray(const mkldnn::memory::desc &md);
+  explicit NDArray(const void *md);
   /*
    * Test if the data is stored in one of special MKLDNN format.
    */
@@ -732,29 +729,28 @@ class NDArray {
   /*
    * This function returns mkldnn::memory with the default primitive_desc.
    */
-  const mkldnn::memory *GetMKLDNNData() const;
+  const void *GetMKLDNNData() const;
   /*
    * This function returns mkldnn::memory with the given primitive_desc
    * as long as the array size meets the required size in the given primitive_desc.
    */
-  const mkldnn::memory *GetMKLDNNData(const mkldnn::memory::desc &md) const;
+  const void *GetMKLDNNData(const void *md) const;
   /*
    * This function returns mkldnn::memory with the given primitive_desc.
    * The returned mkldnn::memory will have the same physical layout as
    * the given primitive_desc.
    */
-  const mkldnn::memory *GetMKLDNNDataReorder(
-      const mkldnn::memory::desc &md) const;
+  const void *GetMKLDNNDataReorder(const void * md) const;
 
   /*
    * This function copies data from mkldnn memory.
    */
-  void CopyFrom(const mkldnn::memory &mem);
+  void CopyFrom(const void *mem);
   /*
    * This function allocates memory for array and creates mkldnn memory
    * with the specified format.
    */
-  mkldnn::memory *CreateMKLDNNData(const mkldnn::memory::desc &md);
+  void *CreateMKLDNNData(const void *md);
 
   /*
    * These are the async version of the methods above.
@@ -762,7 +758,7 @@ class NDArray {
    * the array are complete.
    */
   void Reorder2DefaultAsync() const;
-  void MKLDNNDataReorderAsync(const mkldnn::memory::desc &md) const;
+  void MKLDNNDataReorderAsync(const void *md) const;
 
   /*
    * This creates a new NDArray with the reordered data.
@@ -793,7 +789,7 @@ class NDArray {
    /*!
    * \ Fix mkldnn memory descriptor mismatch from NDArray.
    */
-  void UpdateMKLDNNMemDesc(const mkldnn::memory::desc &desc);
+  void UpdateMKLDNNMemDesc(const void *desc);
 #endif
 
   /*!
@@ -1058,7 +1054,7 @@ class NDArray {
     // save the result in shandle.
     void Reorder2Default();
     // Reroder data to a specified layout.
-    void MKLDNNDataReorder(const mkldnn::memory::desc &md);
+    void MKLDNNDataReorder(const void *md);
     bool IsMKLDNN() const;
     bool IsDefault() const;
 #endif

@@ -199,8 +199,8 @@ void SgMKLDNNFCOp::Forward(const OpContext &ctx,
     if (!initialized_) {
       // TODO(zhennan): Currently, mkldnn fallback mechanism will break inplace option,
       // which make check (req[out_index] == kWriteInplace) useless.
-      auto in_mkl_mem = in_data[idx.sum].GetMKLDNNData();
-      auto out_mkl_mem = out_data[out_index].GetMKLDNNData();
+      auto in_mkl_mem = static_cast<const mkldnn::memory*>(in_data[idx.sum].GetMKLDNNData());
+      auto out_mkl_mem = static_cast<const mkldnn::memory*>(out_data[out_index].GetMKLDNNData());
       if (in_mkl_mem->get_data_handle() == out_mkl_mem->get_data_handle()) {
         inplace_ = true;
       }
@@ -209,8 +209,8 @@ void SgMKLDNNFCOp::Forward(const OpContext &ctx,
       output = in_data[idx.sum];
     } else {
       // Not in place: copy in_data[idx.sum] into outputs[out_index].
-      auto in_mkl_mem = in_data[idx.sum].GetMKLDNNData();
-      auto out_mkl_mem = out_data[out_index].GetMKLDNNData();
+      auto in_mkl_mem = static_cast<const mkldnn::memory*>(in_data[idx.sum].GetMKLDNNData());
+      auto out_mkl_mem = static_cast<const mkldnn::memory*>(out_data[out_index].GetMKLDNNData());
       if (out_data[out_index].dtype() == mshadow::kInt32) {
         auto mem_desc = in_mkl_mem->get_desc();
         auto this_dtype = get_mkldnn_type(mshadow::kInt32);
@@ -459,10 +459,12 @@ void SgMKLDNNFCOp::Forward(const OpContext &ctx,
                               has_bias ? &bias_md : nullptr,
                               1, data_scale_, weight_scales_, false);
     } else {
-      const auto def_weight_mem = weight.GetMKLDNNData();
+      const auto def_weight_mem = static_cast<const mkldnn::memory*>(weight.GetMKLDNNData());
       if (def_weight_mem->get_desc() != fwd_->fwd_pd.weights_desc()) {
-        cached_weight_ = NDArray(fwd_->fwd_pd.weights_desc());
-        auto cached_weight_mem = cached_weight_.GetMKLDNNData();
+        auto weight_desc = fwd_->fwd_pd.weights_desc();
+        cached_weight_ = NDArray(&weight_desc);
+        auto cached_weight_mem = static_cast<const mkldnn::memory*>(
+          cached_weight_.GetMKLDNNData());
         std::unordered_map<int, mkldnn::memory> args(
           {{MKLDNN_ARG_FROM, *def_weight_mem},
           {MKLDNN_ARG_TO, *cached_weight_mem}});
@@ -471,23 +473,25 @@ void SgMKLDNNFCOp::Forward(const OpContext &ctx,
       }
     }
 
-    const auto data_mem = data.GetMKLDNNData();
+    const auto data_mem = static_cast<const mkldnn::memory*>(data.GetMKLDNNData());
     cached_data_mem_ = std::make_shared<mkldnn::memory>(data_mem->get_desc(), engine);
 
     args_[MKLDNN_ARG_SRC] = *cached_data_mem_;
-    args_[MKLDNN_ARG_WEIGHTS] = *cached_weight_.GetMKLDNNData();
+    args_[MKLDNN_ARG_WEIGHTS] = *static_cast<const mkldnn::memory*>(
+      cached_weight_.GetMKLDNNData());
     if (has_bias)
-      args_[MKLDNN_ARG_BIAS] = *cached_bias_.GetMKLDNNData();
+      args_[MKLDNN_ARG_BIAS] = *static_cast<const mkldnn::memory*>(cached_bias_.GetMKLDNNData());
     args_[MKLDNN_ARG_DST] = *cached_out_mem_;
     initialized_ = true;
   }
 
   if (mkldnn_param.with_sum) {
-    const auto& output_mem = output.GetMKLDNNData();
+    const auto& output_mem = static_cast<const mkldnn::memory*>(output.GetMKLDNNData());
     const auto& out_mem_desc = output_mem->get_desc();
     auto dst_mem_desc = fwd_->fwd_pd.dst_desc();
     if (out_mem_desc != dst_mem_desc) {
-      auto tmp_out_mem = output.GetMKLDNNDataReorder(dst_mem_desc);
+      auto tmp_out_mem = static_cast<const mkldnn::memory*>(
+        output.GetMKLDNNDataReorder(&dst_mem_desc));
       dst_mem_desc.data.data_type = out_mem_desc.data.data_type;
       mkldnn_mem_ptr new_out_mem(new mkldnn::memory(dst_mem_desc, CpuEngine::Get()->get_engine(),
                                                     output_mem->get_data_handle()));

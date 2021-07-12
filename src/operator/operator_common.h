@@ -620,7 +620,8 @@ class OpSignature {
   void AddSign(const NDArray &arr) {
 #if MXNET_USE_MKLDNN == 1
     if (arr.IsMKLDNNData()) {
-      AddSign(*(arr.GetMKLDNNData()));
+      auto arr_data = static_cast<const mkldnn::memory*>(arr.GetMKLDNNData());
+      AddSign(*(arr_data));
     } else {
 #endif
       hash = hash * 2 + arr.dtype();

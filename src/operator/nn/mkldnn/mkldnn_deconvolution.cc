@@ -109,9 +109,10 @@ void MKLDNNDeconvFwd::ControlWeightsFormat(const uint32_t num_group, const bool 
     if (weights.IsDefaultData()) {
       // We also need to modify the layout on the original weights array.
       // The data conversion happens after the weights array is used.
-      weights.MKLDNNDataReorderAsync(IOLogicalSwapDesc(fwd_pd->weights_desc(), num_group));
+      auto logical_swap_desc = IOLogicalSwapDesc(fwd_pd->weights_desc(), num_group);
+      weights.MKLDNNDataReorderAsync(&logical_swap_desc);
     } else {
-      CHECK(weights.GetMKLDNNData()->get_desc() ==
+      CHECK(static_cast<const mkldnn::memory*>(weights.GetMKLDNNData())->get_desc() ==
             IOLogicalSwapDesc(fwd_pd->weights_desc(), num_group));
     }
   }
