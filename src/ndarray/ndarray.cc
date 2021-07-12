@@ -36,7 +36,6 @@
 #include "../operator/tensor/matrix_op-inl.h"
 #include "../operator/tensor/init_op.h"
 #include "../operator/nn/mkldnn/mkldnn_base-inl.h"
-#include <iostream> 
 #if MXNET_USE_MKLDNN == 1
 #include <mkldnn.hpp>
 #endif

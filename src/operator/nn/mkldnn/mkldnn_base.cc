@@ -297,10 +297,10 @@ const mkldnn::memory *GetWeights(const NDArray &arr,
     return mem;
   }
   mem = GetWeights(arr, num_groups);
-  if (mem == nullptr) { 
+  if (mem == nullptr) {
     mem = static_cast<const mkldnn::memory*>(arr.GetMKLDNNDataReorder(&target_desc));
   }
-  if (mem->get_desc() == target_desc) { 
+  if (mem->get_desc() == target_desc) {
     return mem;
   }
 

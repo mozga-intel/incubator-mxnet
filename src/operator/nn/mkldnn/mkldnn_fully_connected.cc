@@ -285,11 +285,11 @@ void MKLDNNFCBackward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,
     mkldnn::inner_product_backward_weights::primitive_desc ipBwdWeights_pd
       = GetFCBwdWeights(data, weight, param.no_bias ? nullptr : &in_grad[fullc::kBias],
           out_grad, fwd_pd);
-    
+
     auto ipBwdWeights_diff_dst_desc = ipBwdWeights_pd.diff_dst_desc();
     auto out_grad_mem = static_cast<const mkldnn::memory*>(out_grad.GetMKLDNNDataReorder(
         &ipBwdWeights_diff_dst_desc));
-    
+
     auto ipBwdWeights_src_desc = ipBwdWeights_pd.src_desc();
     auto data_mem = static_cast<const mkldnn::memory*>(
       data.GetMKLDNNDataReorder(&ipBwdWeights_src_desc));
@@ -320,7 +320,7 @@ void MKLDNNFCBackward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,
     auto ipBwdData_diff_dst_desc = ipBwdData_pd.diff_dst_desc();
     auto out_grad_mem = static_cast<const mkldnn::memory*>(out_grad.GetMKLDNNDataReorder(
         &ipBwdData_diff_dst_desc));
-    
+
     auto ipBwdData_weight_desc = ipBwdData_pd.weights_desc();
     auto weight_mem = static_cast<const mkldnn::memory*>(
       weight.GetMKLDNNDataReorder(&ipBwdData_weight_desc));

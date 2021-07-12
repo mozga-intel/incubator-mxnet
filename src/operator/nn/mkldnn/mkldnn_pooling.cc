@@ -331,7 +331,6 @@ void MKLDNNPoolingGradCompute(const OpContext &ctx, const PoolingParam &param,
   TmpMemMgr::Get()->Init(ctx.requested[0]);
 
   auto &bwd = GetPoolingBwd(param, in_data, in_grad, out_grad);
-  
   auto bwd_diff_dst_desc = bwd.pd.diff_dst_desc();
   auto diff_dst_mem = static_cast<const mkldnn::memory*>(
     out_grad.GetMKLDNNDataReorder(&bwd_diff_dst_desc));

@@ -101,7 +101,7 @@ static void ConvertWeightBias2MKLDNN(NDArray *weight, NDArray *bias, bool has_bi
     weight_attr.set_output_scales(weight_mask, weight_scales);
   }
   auto default_weights_memory = GetWeights(*weight, num_group);
-  if (default_weights_memory == nullptr) default_weights_memory = 
+  if (default_weights_memory == nullptr) default_weights_memory =
     static_cast<const mkldnn::memory*>(weight->GetMKLDNNData());
   const auto weight_reorder_pd =
       mkldnn::reorder::primitive_desc(*default_weights_memory, *conv_weights_memory, weight_attr);

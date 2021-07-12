@@ -119,7 +119,7 @@ static MKLDNNLogSoftmaxFwd &GetLogSoftmaxFwd(const SoftmaxParam &param,
 
   auto it = fwds.find(key);
   if (it == fwds.end()) {
-    MKLDNNLogSoftmaxFwd fwd(is_train, real_axis, 
+    MKLDNNLogSoftmaxFwd fwd(is_train, real_axis,
               *(static_cast<const mkldnn::memory*>(data.GetMKLDNNData())));
     it = AddToCache(&fwds, key, fwd);
   }

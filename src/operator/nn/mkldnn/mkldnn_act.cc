@@ -222,7 +222,7 @@ static inline MKLDNNActBackward &GetActBackward(const MKLDNNActParam &param,
 
   auto it = bwds.find(key);
   if (it == bwds.end()) {
-    MKLDNNActBackward bwd(param, in_data, in_mem, 
+    MKLDNNActBackward bwd(param, in_data, in_mem,
                           *static_cast<const mkldnn::memory*>(out_grad.GetMKLDNNData()));
     it = AddToCache(&bwds, key, bwd);
   }
