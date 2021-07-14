@@ -434,7 +434,7 @@ void MKLDNNConvolutionForwardFullFeature(const MKLDNNConvFullParam &param, const
     } else {
       auto fwd_weight_desc = fwd->GetPd().weights_desc();
       weight_mem = static_cast<const mkldnn::memory*>(
-        weight.GetMKLDNNDataReorder(&fwd_weight_desc);
+        weight.GetMKLDNNDataReorder(&fwd_weight_desc));
     }
   }
   mkldnn_output_t out_mem;
